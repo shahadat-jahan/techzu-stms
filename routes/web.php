@@ -17,4 +17,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// Role-protected test routes
+Route::get('/agent/test', function () {
+    return 'Agent area';
+})->middleware(['auth', 'role:admin,agent'])->name('agent.test');
+
+Route::get('/admin/test', function () {
+    return 'Admin area';
+})->middleware(['auth', 'role:admin'])->name('admin.test');
+
 require __DIR__.'/auth.php';

@@ -18,6 +18,10 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+            $table->string('role')->default('customer');
+            $table->boolean('is_available')->default(true);
+            $table->unsignedInteger('max_active_tickets')->default(5);
+            $table->index(['role', 'is_available']);
             $table->timestamps();
         });
 
