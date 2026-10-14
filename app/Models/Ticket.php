@@ -14,7 +14,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['subject', 'description', 'priority', 'category_id', 'created_by', 'external_ref'])]
+#[Fillable([
+    'ticket_number',
+    'subject',
+    'description',
+    'priority',
+    'status',
+    'category_id',
+    'created_by',
+    'assigned_to',
+    'due_at',
+    'sla_warning_at',
+    'resolved_at',
+    'closed_at',
+    'escalated_approaching_at',
+    'escalated_breached_at',
+    'last_assigned_at',
+    'external_ref',
+])]
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */

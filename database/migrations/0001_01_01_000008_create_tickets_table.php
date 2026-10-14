@@ -36,6 +36,7 @@ return new class extends Migration
             $table->index(['due_at', 'status']);
             $table->index('priority');
             $table->index('category_id');
+            $table->index('created_at');
             $table->index('created_by');
             $table->index('assigned_to');
         });
