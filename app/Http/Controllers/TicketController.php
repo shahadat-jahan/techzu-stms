@@ -141,7 +141,7 @@ class TicketController extends Controller
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Category>
+     * @return Collection<int, Category>
      */
     private function activeCategories(): Collection
     {

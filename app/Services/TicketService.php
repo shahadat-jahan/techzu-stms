@@ -134,7 +134,15 @@ class TicketService
     private function transitionTo(Ticket $ticket, TicketStatus $newStatus, User $actor, string $action, ?string $note = null): Ticket
     {
         return DB::transaction(function () use ($ticket, $newStatus, $actor, $action, $note) {
-            $oldStatus = $ticket->status;
+            // Concurrent requests each bind their own copy of the ticket, so the transition
+            // must be validated against the committed row under a lock; otherwise two racing
+            // transitions both pass and write duplicate, contradictory activity rows.
+            $lockedTicket = Ticket::query()
+                ->whereKey($ticket->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $oldStatus = $lockedTicket->status;
 
             if (! $oldStatus->canTransitionTo($newStatus)) {
                 throw ValidationException::withMessages([
