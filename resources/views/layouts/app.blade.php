@@ -18,6 +18,9 @@
         <div class="min-h-screen bg-gray-100">
             @include('layouts.navigation')
 
+            <!-- Flash Messages -->
+            @include('components.flash-messages')
+
             <!-- Page Heading -->
             @isset($header)
                 <header class="bg-white shadow">
