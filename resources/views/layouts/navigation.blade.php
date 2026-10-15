@@ -23,18 +23,6 @@
                     <x-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
                         {{ __('Resolved') }}
                     </x-nav-link>
-
-                    @if(Auth::user()->isAdmin())
-                        <x-nav-link :href="route('admin.test')" :active="request()->routeIs('admin.test')">
-                            {{ __('Admin Area') }}
-                        </x-nav-link>
-                    @endif
-
-                    @if(Auth::user()->isAgent())
-                        <x-nav-link :href="route('agent.test')" :active="request()->routeIs('agent.test')">
-                            {{ __('Agent Area') }}
-                        </x-nav-link>
-                    @endif
                 </div>
             </div>
 
@@ -106,18 +94,6 @@
             <x-responsive-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
                 {{ __('Resolved') }}
             </x-responsive-nav-link>
-
-            @if(Auth::user()->isAdmin())
-                <x-responsive-nav-link :href="route('admin.test')" :active="request()->routeIs('admin.test')">
-                    {{ __('Admin Area') }}
-                </x-responsive-nav-link>
-            @endif
-
-            @if(Auth::user()->isAgent())
-                <x-responsive-nav-link :href="route('agent.test')" :active="request()->routeIs('agent.test')">
-                    {{ __('Agent Area') }}
-                </x-responsive-nav-link>
-            @endif
         </div>
 
         <!-- Responsive Settings Options -->

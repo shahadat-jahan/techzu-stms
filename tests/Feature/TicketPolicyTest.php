@@ -39,6 +39,7 @@ it('authorizes an available agent for its assigned and unassigned tickets', func
     expect(Gate::forUser($agent)->allows('view', $assigned))->toBeTrue()
         ->and(Gate::forUser($agent)->allows('view', $unassigned))->toBeTrue()
         ->and(Gate::forUser($agent)->allows('view', $theirs))->toBeFalse()
+        ->and(Gate::forUser($agent)->allows('create', Ticket::class))->toBeFalse()
         ->and(Gate::forUser($agent)->allows('accept', $assigned))->toBeFalse()
         ->and(Gate::forUser($agent)->allows('accept', $unassigned))->toBeTrue()
         ->and(Gate::forUser($agent)->allows('reply', $assigned))->toBeTrue()

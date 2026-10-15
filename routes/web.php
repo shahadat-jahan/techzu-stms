@@ -34,20 +34,14 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
     Route::post('/{ticket}/reopen', [TicketController::class, 'reopen'])->name('reopen');
     Route::post('/{ticket}/replies', [TicketReplyController::class, 'store'])->name('replies.store');
     Route::post('/{ticket}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
+    Route::post('/{ticket}/accept', [TicketController::class, 'accept'])->name('accept');
+    Route::post('/{ticket}/assign', [TicketController::class, 'assign'])->name('assign');
+    Route::post('/assign-unassigned', [TicketController::class, 'assignUnassigned'])->name('assign-unassigned');
 });
 
 Route::middleware('auth')->prefix('attachments')->name('attachments.')->group(function () {
     Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
     Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
 });
-
-// Role-protected test routes
-Route::get('/agent/test', function () {
-    return 'Agent area';
-})->middleware(['auth', 'role:admin,agent'])->name('agent.test');
-
-Route::get('/admin/test', function () {
-    return 'Admin area';
-})->middleware(['auth', 'role:admin'])->name('admin.test');
 
 require __DIR__.'/auth.php';

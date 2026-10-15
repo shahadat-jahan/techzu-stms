@@ -14,9 +14,19 @@
                 <a href="{{ route('tickets.resolved') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
                     {{ __('Resolved & Closed') }}
                 </a>
-                <a href="{{ route('tickets.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                    {{ __('New Ticket') }}
-                </a>
+                @can('create', App\Models\Ticket::class)
+                    <a href="{{ route('tickets.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        {{ __('New Ticket') }}
+                    </a>
+                @endcan
+                @can('assign', App\Models\Ticket::class)
+                    <form method="POST" action="{{ route('tickets.assign-unassigned') }}" class="ml-auto">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                            {{ __('Auto-assign Unassigned') }}
+                        </button>
+                    </form>
+                @endcan
             </div>
         </div>
     </x-slot>

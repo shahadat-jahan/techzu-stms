@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\TicketReply;
+use App\Models\User;
 use App\Policies\AttachmentPolicy;
 use App\Policies\ReplyPolicy;
 use App\Policies\TicketPolicy;
@@ -31,5 +32,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketReply::class, ReplyPolicy::class);
         Gate::policy(Attachment::class, AttachmentPolicy::class);
+
+        Gate::define('manageTickets', fn (User $user): bool => $user->isAgent() || $user->isAdmin());
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
 
@@ -23,12 +24,12 @@ class TicketPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return $user->isCustomer() || $user->isAdmin();
     }
 
     public function update(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        return $ticket->status !== TicketStatus::Closed && $this->view($user, $ticket);
     }
 
     public function accept(User $user, Ticket $ticket): bool
@@ -36,7 +37,7 @@ class TicketPolicy
         return ($user->isAdmin() || $user->isAgent()) && $ticket->assigned_to === null;
     }
 
-    public function assign(User $user, Ticket $ticket): bool
+    public function assign(User $user, ?Ticket $ticket = null): bool
     {
         return $user->isAdmin();
     }
@@ -53,7 +54,7 @@ class TicketPolicy
 
     public function changeStatus(User $user, Ticket $ticket): bool
     {
-        return $this->update($user, $ticket);
+        return $this->view($user, $ticket);
     }
 
     public function changePriority(User $user, Ticket $ticket): bool
@@ -63,17 +64,17 @@ class TicketPolicy
 
     public function resolve(User $user, Ticket $ticket): bool
     {
-        return $this->update($user, $ticket);
+        return $this->view($user, $ticket);
     }
 
     public function close(User $user, Ticket $ticket): bool
     {
-        return $this->update($user, $ticket);
+        return $this->view($user, $ticket);
     }
 
     public function reopen(User $user, Ticket $ticket): bool
     {
-        return $this->update($user, $ticket);
+        return $this->view($user, $ticket);
     }
 
     public function delete(User $user, Ticket $ticket): bool

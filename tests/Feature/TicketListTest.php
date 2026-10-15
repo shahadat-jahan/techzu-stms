@@ -88,3 +88,40 @@ it('separates active tickets from resolved and closed ones', function () {
         ->assertDontSee($resolved->ticket_number)
         ->assertDontSee($closed->ticket_number);
 });
+
+it('hides the new ticket action from agents on both lists', function () {
+    $agent = User::factory()->availableAgent()->create();
+
+    $this->actingAs($agent)->get(route('tickets.index'))
+        ->assertOk()
+        ->assertDontSee(route('tickets.create'));
+
+    $this->actingAs($agent)->get(route('tickets.resolved'))
+        ->assertOk()
+        ->assertDontSee(route('tickets.create'));
+});
+
+it('shows the new ticket action to customers and admins', function () {
+    $customer = User::factory()->customer()->create();
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($customer)->get(route('tickets.index'))
+        ->assertOk()
+        ->assertSee(route('tickets.create'));
+
+    $this->actingAs($admin)->get(route('tickets.resolved'))
+        ->assertOk()
+        ->assertSee(route('tickets.create'));
+});
+
+it('renders the due column for tickets with an sla target', function () {
+    $admin = User::factory()->admin()->create();
+    $dueAt = now()->addDay();
+
+    Ticket::factory()->create(['due_at' => $dueAt]);
+
+    $this->actingAs($admin)->get(route('tickets.index'))
+        ->assertOk()
+        ->assertSee('Due')
+        ->assertSee($dueAt->format('M j, Y H:i'));
+});

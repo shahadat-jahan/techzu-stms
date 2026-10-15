@@ -12,6 +12,7 @@
                         <th class="px-4 py-3">Subject</th>
                         <th class="px-4 py-3">Priority</th>
                         <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Due</th>
                         <th class="px-4 py-3">Category</th>
                         <th class="px-4 py-3">Assignee</th>
                         <th class="px-4 py-3">Created</th>
@@ -29,7 +30,10 @@
                             <td class="max-w-xs truncate px-4 py-3 text-gray-900">{{ $ticket->subject }}</td>
                             <td class="whitespace-nowrap px-4 py-3"><x-priority-badge :priority="$ticket->priority" /></td>
                             <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$ticket->status" /></td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->category?->name }}</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-gray-500">
+                                {{ $ticket->due_at?->format('M j, Y H:i') ?? '—' }}
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->category?->name ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->agent?->name ?? 'Unassigned' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-500">{{ $ticket->created_at->format('M j, Y H:i') }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">

@@ -9,7 +9,7 @@ use App\Models\Ticket;
 use App\Models\TicketReply;
 use App\Models\User;
 
-class ActivityLogger
+class ActivityLoggerService
 {
     public function logCreated(Ticket $ticket, User $actor): void
     {
@@ -119,6 +119,36 @@ class ActivityLogger
                 'attachable_id' => $attachment->attachable_id,
             ],
             sprintf('Attachment %s added by %s', $attachment->original_name, $actor->name),
+        );
+    }
+
+    public function logAssigned(Ticket $ticket, User $assignedAgent, User $actor): void
+    {
+        $this->log(
+            'assigned',
+            $ticket,
+            $actor,
+            [
+                'assigned_agent_id' => $assignedAgent->id,
+                'assigned_agent_name' => $assignedAgent->name,
+            ],
+            sprintf('Assigned to %s by %s', $assignedAgent->name, $actor->name),
+        );
+    }
+
+    public function logReassigned(Ticket $ticket, User $oldAgent, User $newAgent, User $actor): void
+    {
+        $this->log(
+            'reassigned',
+            $ticket,
+            $actor,
+            [
+                'old_agent_id' => $oldAgent->id,
+                'old_agent_name' => $oldAgent->name,
+                'new_agent_id' => $newAgent->id,
+                'new_agent_name' => $newAgent->name,
+            ],
+            sprintf('Reassigned from %s to %s by %s', $oldAgent->name, $newAgent->name, $actor->name),
         );
     }
 

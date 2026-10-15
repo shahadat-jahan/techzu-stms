@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TicketStatus;
+use App\Http\Requests\AcceptTicketRequest;
+use App\Http\Requests\AssignTicketRequest;
 use App\Http\Requests\ChangeStatusRequest;
 use App\Http\Requests\StoreTicketRequest;
 use App\Http\Requests\UpdateTicketRequest;
 use App\Models\Category;
 use App\Models\Ticket;
+use App\Models\User;
+use App\Services\TicketAssignmentService;
 use App\Services\TicketService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,9 +21,10 @@ use Illuminate\Support\Facades\Redirect;
 
 class TicketController extends Controller
 {
-    public function __construct(private readonly TicketService $ticketService)
-    {
-    }
+    public function __construct(
+        private readonly TicketService $ticketService,
+        private readonly TicketAssignmentService $assignmentService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -72,7 +77,23 @@ class TicketController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('tickets.show', compact('ticket', 'replies', 'attachments', 'activities'));
+        $availableAgents = null;
+        if ($user !== null && $user->isAdmin()) {
+            $availableAgents = User::where('role', 'agent')
+                ->where('is_available', true)
+                ->withCount([
+                    'tickets as active_tickets_count' => function ($query) {
+                        $query->whereIn('status', [
+                            TicketStatus::Open->value,
+                            TicketStatus::InProgress->value,
+                            TicketStatus::WaitingForCustomer->value,
+                        ]);
+                    },
+                ])
+                ->get();
+        }
+
+        return view('tickets.show', compact('ticket', 'replies', 'attachments', 'activities', 'availableAgents'));
     }
 
     public function create(): View
@@ -155,6 +176,36 @@ class TicketController extends Controller
 
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket reopened.');
+    }
+
+    public function accept(AcceptTicketRequest $request, Ticket $ticket): RedirectResponse
+    {
+        $this->authorize('accept', $ticket);
+
+        $success = $this->assignmentService->accept($ticket, $request->user());
+        if (! $success) {
+            return back()->with('error', 'Ticket was already assigned by another agent.');
+        }
+
+        return back()->with('success', 'Ticket accepted successfully.');
+    }
+
+    public function assign(AssignTicketRequest $request, Ticket $ticket): RedirectResponse
+    {
+        $this->authorize('assign', $ticket);
+
+        $agent = User::findOrFail($request->validated('user_id'));
+        $this->assignmentService->assign($ticket, $agent, $request->user());
+
+        return back()->with('success', 'Ticket assigned successfully.');
+    }
+
+    public function assignUnassigned(Request $request): RedirectResponse
+    {
+        $this->authorize('assign', Ticket::class);
+
+        $results = $this->assignmentService->autoAssignUnassigned($request->user());
+        return back()->with('success', "Auto-assigned {$results['assigned']} tickets, skipped {$results['skipped']}.");
     }
 
     /**

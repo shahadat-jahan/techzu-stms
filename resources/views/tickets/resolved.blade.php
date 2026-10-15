@@ -14,9 +14,11 @@
                 <a href="{{ route('tickets.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
                     {{ __('Active Tickets') }}
                 </a>
-                <a href="{{ route('tickets.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                    {{ __('New Ticket') }}
-                </a>
+                @can('create', App\Models\Ticket::class)
+                    <a href="{{ route('tickets.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        {{ __('New Ticket') }}
+                    </a>
+                @endcan
             </div>
         </div>
     </x-slot>

@@ -56,12 +56,26 @@ it('validates required fields on ticket creation', function () {
         ->assertSessionHasErrors(['subject', 'description', 'priority', 'category_id']);
 });
 
-it('rejects a duplicate external reference', function () {
+it('forbids an agent from creating a ticket', function () {
     $agent = User::factory()->agent()->create();
+    $category = Category::factory()->create();
+
+    $this->actingAs($agent)->post(route('tickets.store'), [
+        'subject' => 'Agent created ticket',
+        'description' => 'Should be rejected.',
+        'priority' => Priority::Low->value,
+        'category_id' => $category->id,
+    ])->assertForbidden();
+
+    expect(Ticket::where('subject', 'Agent created ticket')->exists())->toBeFalse();
+});
+
+it('rejects a duplicate external reference', function () {
+    $customer = User::factory()->customer()->create();
     $category = Category::factory()->create();
     Ticket::factory()->withExternalRef('CRM-1')->create();
 
-    $this->actingAs($agent)->post(route('tickets.store'), [
+    $this->actingAs($customer)->post(route('tickets.store'), [
         'subject' => 'Duplicate import row',
         'description' => 'Should be rejected.',
         'priority' => Priority::Low->value,

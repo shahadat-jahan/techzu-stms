@@ -27,7 +27,7 @@
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 
-                    @if (Auth::user()->isAgent() || Auth::user()->isAdmin())
+                    @can('manageTickets')
                         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <div>
                                 <x-input-label for="priority" value="Priority" />
@@ -53,7 +53,7 @@
                                 <x-input-error :messages="$errors->get('category_id')" class="mt-2" />
                             </div>
                         </div>
-                    @endif
+                    @endcan
 
                     <div class="flex items-center gap-4">
                         <x-primary-button>{{ __('Save Changes') }}</x-primary-button>

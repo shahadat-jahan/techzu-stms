@@ -17,8 +17,9 @@ use Illuminate\Validation\ValidationException;
 class TicketService
 {
     public function __construct(
-        private readonly TicketNumberGenerator $numberGenerator,
-        private readonly ActivityLogger $activityLogger,
+        private readonly TicketNumberGeneratorService $numberGenerator,
+        private readonly ActivityLoggerService $activityLogger,
+        private readonly TicketAssignmentService $assignmentService,
     ) {}
 
     public function create(array $data, User $creator): Ticket
@@ -27,7 +28,7 @@ class TicketService
             $priority = $data['priority'];
 
             if (! $priority instanceof Priority) {
-                $priority = Priority::from($priority);
+                $priority = Priority::from($data['priority']);
             }
 
             $ticket = Ticket::create([
@@ -45,6 +46,17 @@ class TicketService
             ]);
 
             $this->activityLogger->logCreated($ticket, $creator);
+
+            // Auto-assignment after ticket creation
+            if ($ticket->assigned_to === null) {
+                $assignedAgent = $this->assignmentService->assignTicket($ticket);
+                if ($assignedAgent) {
+                    $ticket->assigned_to = $assignedAgent->id;
+                    $ticket->last_assigned_at = now();
+                    $ticket->save();
+                    $this->activityLogger->logAssigned($ticket, $assignedAgent, $creator);
+                }
+            }
 
             return $ticket;
         });

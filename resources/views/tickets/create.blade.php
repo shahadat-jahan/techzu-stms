@@ -50,14 +50,14 @@
                         </div>
                     </div>
 
-                    @if (Auth::user()->isAgent() || Auth::user()->isAdmin())
+                    @can('manageTickets')
                         <div>
                             <x-input-label for="external_ref" value="External Reference (optional)" />
                             <x-text-input id="external_ref" name="external_ref" type="text" class="mt-1 block w-full" :value="old('external_ref')" placeholder="e.g. CRM-12345" />
                             <p class="mt-1 text-xs text-gray-500">Used for duplicate detection on CSV imports.</p>
                             <x-input-error :messages="$errors->get('external_ref')" class="mt-2" />
                         </div>
-                    @endif
+                    @endcan
 
                     <div class="flex items-center gap-4">
                         <x-primary-button>{{ __('Create Ticket') }}</x-primary-button>
