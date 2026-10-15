@@ -82,6 +82,21 @@ class Ticket extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
+    public function visibleReplies(User $user)
+    {
+        return $this->replies()->visibleTo($user);
+    }
+
+    public function visibleAttachments(User $user)
+    {
+        return $this->attachments()->visibleTo($user);
+    }
+
+    public function visibleActivities(User $user)
+    {
+        return $this->activities()->visibleTo($user);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', [

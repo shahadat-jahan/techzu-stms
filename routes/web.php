@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketReplyController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -30,8 +32,14 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
     Route::post('/{ticket}/resolve', [TicketController::class, 'resolve'])->name('resolve');
     Route::post('/{ticket}/close', [TicketController::class, 'close'])->name('close');
     Route::post('/{ticket}/reopen', [TicketController::class, 'reopen'])->name('reopen');
+    Route::post('/{ticket}/replies', [TicketReplyController::class, 'store'])->name('replies.store');
+    Route::post('/{ticket}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
 });
 
+Route::middleware('auth')->prefix('attachments')->name('attachments.')->group(function () {
+    Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
+    Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
+});
 
 // Role-protected test routes
 Route::get('/agent/test', function () {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\TicketReplyFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,5 +36,14 @@ class TicketReply extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isAdmin() || $user->isAgent()) {
+            return $query;
+        }
+
+        return $query->where('is_internal', false);
     }
 }

@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
+use App\Models\Attachment;
 use App\Models\Ticket;
+use App\Models\TicketReply;
 use App\Models\User;
 
 class ActivityLogger
@@ -85,6 +87,38 @@ class ActivityLogger
             $actor,
             $this->statusMeta($oldStatus, $newStatus),
             sprintf('Ticket reopened from %s to %s by %s', $oldStatus->label(), $newStatus->label(), $actor->name),
+        );
+    }
+
+    public function logReplyCreated(Ticket $ticket, TicketReply $reply, User $actor): void
+    {
+        $label = $reply->is_internal ? 'Internal note' : 'Reply';
+
+        $this->log(
+            $reply->is_internal ? 'internal_note_added' : 'replied',
+            $ticket,
+            $actor,
+            [
+                'reply_id' => $reply->id,
+                'is_internal' => $reply->is_internal,
+            ],
+            sprintf('%s added by %s', $label, $actor->name),
+        );
+    }
+
+    public function logAttachmentAdded(Ticket $ticket, Attachment $attachment, User $actor): void
+    {
+        $this->log(
+            'attachment_added',
+            $ticket,
+            $actor,
+            [
+                'attachment_id' => $attachment->id,
+                'is_internal' => $attachment->isInternal(),
+                'attachable_type' => $attachment->attachable_type,
+                'attachable_id' => $attachment->attachable_id,
+            ],
+            sprintf('Attachment %s added by %s', $attachment->original_name, $actor->name),
         );
     }
 

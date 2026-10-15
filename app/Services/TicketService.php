@@ -4,8 +4,12 @@ namespace App\Services;
 
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
+use App\Models\Attachment;
 use App\Models\Ticket;
+use App\Models\TicketReply;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,8 +19,7 @@ class TicketService
     public function __construct(
         private readonly TicketNumberGenerator $numberGenerator,
         private readonly ActivityLogger $activityLogger,
-    ) {
-    }
+    ) {}
 
     public function create(array $data, User $creator): Ticket
     {
@@ -28,7 +31,7 @@ class TicketService
             }
 
             $ticket = Ticket::create([
-                'ticket_number' => $this->numberGenerator->generate(),
+                'ticket_number' => $this->numberGenerator->generate(now()->year),
                 'subject' => $data['subject'],
                 'description' => $data['description'],
                 'priority' => $priority,
@@ -131,42 +134,93 @@ class TicketService
         return $this->transitionTo($ticket, $newStatus, $actor, 'reopened');
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function addReply(Ticket $ticket, array $data, User $creator): TicketReply
+    {
+        return DB::transaction(function () use ($ticket, $data, $creator) {
+            $reply = $ticket->replies()->create([
+                'user_id' => $creator->id,
+                'body' => $data['body'],
+                'is_internal' => (bool) ($data['is_internal'] ?? false),
+            ]);
+
+            $this->activityLogger->logReplyCreated($ticket, $reply, $creator);
+
+            if (! $reply->is_internal
+                && $creator->isCustomer()
+                && $ticket->status === TicketStatus::WaitingForCustomer) {
+                $this->performTransition($ticket, TicketStatus::InProgress, $creator, 'status_changed');
+            }
+
+            return $reply;
+        });
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $files
+     * @return Collection<int, Attachment>
+     */
+    public function addAttachments(Ticket $ticket, array $files, User $creator): Collection
+    {
+        return DB::transaction(function () use ($ticket, $files, $creator) {
+            $attachments = new Collection;
+
+            foreach ($files as $file) {
+                $attachment = $ticket->attachments()->create([
+                    'user_id' => $creator->id,
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $file->store('attachments', 'local'),
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ]);
+
+                $this->activityLogger->logAttachmentAdded($ticket, $attachment, $creator);
+
+                $attachments->push($attachment);
+            }
+
+            return $attachments;
+        });
+    }
+
     private function transitionTo(Ticket $ticket, TicketStatus $newStatus, User $actor, string $action, ?string $note = null): Ticket
     {
-        return DB::transaction(function () use ($ticket, $newStatus, $actor, $action, $note) {
-            // Concurrent requests each bind their own copy of the ticket, so the transition
-            // must be validated against the committed row under a lock; otherwise two racing
-            // transitions both pass and write duplicate, contradictory activity rows.
-            $lockedTicket = Ticket::query()
-                ->whereKey($ticket->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
+        return DB::transaction(fn (): Ticket => $this->performTransition($ticket, $newStatus, $actor, $action, $note));
+    }
 
-            $oldStatus = $lockedTicket->status;
+    private function performTransition(Ticket $ticket, TicketStatus $newStatus, User $actor, string $action, ?string $note = null): Ticket
+    {
+        $lockedTicket = Ticket::query()
+            ->whereKey($ticket->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
 
-            if (! $oldStatus->canTransitionTo($newStatus)) {
-                throw ValidationException::withMessages([
-                    'status' => sprintf('Cannot change status from %s to %s.', $oldStatus->label(), $newStatus->label()),
-                ]);
-            }
+        $oldStatus = $lockedTicket->status;
 
-            $ticket->status = $newStatus;
+        if (! $oldStatus->canTransitionTo($newStatus)) {
+            throw ValidationException::withMessages([
+                'status' => sprintf('Cannot change status from %s to %s.', $oldStatus->label(), $newStatus->label()),
+            ]);
+        }
 
-            if ($newStatus === TicketStatus::Resolved) {
-                $ticket->resolved_at = now();
-            } elseif ($newStatus === TicketStatus::Closed) {
-                $ticket->closed_at = now();
-            } else {
-                $ticket->resolved_at = null;
-                $ticket->closed_at = null;
-            }
+        $ticket->status = $newStatus;
 
-            $ticket->save();
+        if ($newStatus === TicketStatus::Resolved) {
+            $ticket->resolved_at = now();
+        } elseif ($newStatus === TicketStatus::Closed) {
+            $ticket->closed_at = now();
+        } else {
+            $ticket->resolved_at = null;
+            $ticket->closed_at = null;
+        }
 
-            $this->logTransition($ticket, $oldStatus, $newStatus, $actor, $action, $note);
+        $ticket->save();
 
-            return $ticket;
-        });
+        $this->logTransition($ticket, $oldStatus, $newStatus, $actor, $action, $note);
+
+        return $ticket;
     }
 
     private function logTransition(Ticket $ticket, TicketStatus $oldStatus, TicketStatus $newStatus, User $actor, string $action, ?string $note): void

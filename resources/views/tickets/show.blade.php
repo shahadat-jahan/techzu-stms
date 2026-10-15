@@ -1,6 +1,8 @@
 @php
     $statusEnum = \App\Enums\TicketStatus::class;
-    $canManage = Auth::user()->isAgent() || Auth::user()->isAdmin();
+    $user = Auth::user();
+    $canManage = $user !== null && ($user->isAgent() || $user->isAdmin());
+    $canAddInternalNote = $canManage;
 @endphp
 
 <x-app-layout>
@@ -13,9 +15,15 @@
                 <x-status-badge :status="$ticket->status" />
                 <x-priority-badge :priority="$ticket->priority" />
             </div>
-            <a href="{{ route('tickets.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
-                {{ __('Back to tickets') }}
-            </a>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('tickets.edit', $ticket) }}"
+                   class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                    {{ __('Edit') }}
+                </a>
+                <a href="{{ route('tickets.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    {{ __('Back to tickets') }}
+                </a>
+            </div>
         </div>
     </x-slot>
 
@@ -38,6 +46,79 @@
                             <h3 class="text-sm font-semibold text-gray-800">{{ $ticket->subject }}</h3>
                         </div>
                         <div class="whitespace-pre-wrap p-6 text-sm text-gray-700">{{ $ticket->description }}</div>
+                    </div>
+
+                    <div class="bg-white shadow sm:rounded-lg">
+                        <div class="border-b border-gray-100 px-6 py-4">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ __('Conversation') }}</h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            @forelse ($replies as $reply)
+                                <div class="flex gap-4">
+                                    <div class="min-w-0 flex-1 rounded-md bg-gray-50 px-4 py-3 text-sm">
+                                        @if ($reply->is_internal && $canAddInternalNote)
+                                            <span class="mb-1 inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                                                {{ __('Internal note') }}
+                                            </span>
+                                        @endif
+                                        <div class="text-gray-900">{{ $reply->body }}</div>
+                                        <div class="mt-1 text-xs text-gray-400">
+                                            {{ $reply->user->name ?? __('System') }} &middot; {{ $reply->created_at->format('M j, Y H:i') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-sm text-gray-500">{{ __('No replies yet. Start the conversation below.') }}</p>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <div class="bg-white shadow sm:rounded-lg">
+                        <div class="border-b border-gray-100 px-6 py-4">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ __('Attachments') }}</h3>
+                            <span class="text-xs text-gray-400">{{ $attachments->count() }} {{ __('attached') }}</span>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            @forelse ($attachments as $attachment)
+                                <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-4 py-3">
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ $attachment->original_name }}</div>
+                                        <div class="text-xs text-gray-400">
+                                            {{ $attachment->size }} bytes &middot; {{ $attachment->created_at->format('M j, Y H:i') }}
+                                        </div>
+                                    </div>
+                                    <div class="flex shrink-0 gap-2">
+                                        <a href="{{ route('attachments.download', $attachment) }}"
+                                           class="text-xs font-medium text-indigo-600 hover:text-indigo-900">{{ __('Download') }}</a>
+                                        @if ($user !== null && $user->can('delete', $attachment))
+                                            <form method="POST" action="{{ route('attachments.destroy', $attachment) }}" class="flex gap-1">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-xs font-medium text-red-600 hover:text-red-900"
+                                                        onclick="return confirm('{{ __('Remove this attachment?') }}')">{{ __('Remove') }}</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-sm text-gray-500">{{ __('No attachments yet.') }}</p>
+                            @endforelse
+                        </div>
+                        <form method="POST" action="{{ route('tickets.attachments.store', $ticket) }}" enctype="multipart/form-data" class="border-t border-gray-100 px-6 py-4 space-y-3">
+                            @csrf
+                            <label for="files" class="text-sm font-medium text-gray-700">{{ __('Add attachment') }}</label>
+                            <input id="files" name="files[]" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                                   class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                            <p class="text-xs text-gray-400">
+                                {{ __('Allowed:') }} {{ implode(', ', config('support.uploads.allowed_mimes')) }}
+                                {{ __('up to') }} {{ config('support.uploads.max_size') }}MB
+                                {{ __('per file,') }} {{ config('support.uploads.max_files') }} {{ __('files at once') }}.
+                            </p>
+                            <button type="submit"
+                                    class="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
+                                {{ __('Upload') }}
+                            </button>
+                        </form>
                     </div>
 
                     @if ($canManage)
@@ -129,50 +210,40 @@
                     </div>
 
                     <div class="bg-white shadow sm:rounded-lg">
-                        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                            <h3 class="text-sm font-semibold text-gray-800">{{ __('Edit Ticket') }}</h3>
-                            <a href="{{ route('tickets.edit', $ticket) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
-                                {{ __('Edit') }}
-                            </a>
+                        <div class="border-b border-gray-100 px-6 py-4">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ __('Activity Timeline') }}</h3>
+                        </div>
+                        <div class="p-6">
+                            @if ($activities->isEmpty())
+                                <p class="text-sm text-gray-500">{{ __('No activity recorded yet.') }}</p>
+                            @else
+                                <ol class="relative ms-3 space-y-6 border-s border-gray-200">
+                                    @foreach ($activities as $activity)
+                                        <li class="ms-4">
+                                            <span class="absolute -start-[6px] mt-1.5 h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-white"></span>
+                                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                                                    {{ ucwords(str_replace('_', ' ', $activity->action)) }}
+                                                </span>
+                                                <span class="text-xs text-gray-400">
+                                                    {{ $activity->created_at->format('M j, Y H:i:s') }}
+                                                </span>
+                                            </div>
+                                            <p class="mt-1 text-sm text-gray-700">
+                                                {{ $activity->meta['message'] ?? ucwords(str_replace('_', ' ', $activity->action)) }}
+                                            </p>
+                                            @if (! empty($activity->meta['note']))
+                                                <p class="mt-1 text-sm text-gray-500 italic">{{ $activity->meta['note'] }}</p>
+                                            @endif
+                                            <p class="mt-0.5 text-xs text-gray-500">
+                                                {{ __('by :actor', ['actor' => $activity->actor?->name ?? 'System']) }}
+                                            </p>
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            @endif
                         </div>
                     </div>
-                </div>
-            </div>
-
-
-            <div class="bg-white shadow sm:rounded-lg">
-                <div class="border-b border-gray-100 px-6 py-4">
-                    <h3 class="text-sm font-semibold text-gray-800">{{ __('Activity Timeline') }}</h3>
-                </div>
-                <div class="p-6">
-                    @if ($activities->isEmpty())
-                        <p class="text-sm text-gray-500">{{ __('No activity recorded yet.') }}</p>
-                    @else
-                        <ol class="relative ms-3 space-y-6 border-s border-gray-200">
-                            @foreach ($activities as $activity)
-                                <li class="ms-4">
-                                    <span class="absolute -start-[6px] mt-1.5 h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-white"></span>
-                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                        <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                                            {{ ucwords(str_replace('_', ' ', $activity->action)) }}
-                                        </span>
-                                        <span class="text-xs text-gray-400">
-                                            {{ $activity->created_at->format('M j, Y H:i:s') }}
-                                        </span>
-                                    </div>
-                                    <p class="mt-1 text-sm text-gray-700">
-                                        {{ $activity->meta['message'] ?? ucwords(str_replace('_', ' ', $activity->action)) }}
-                                    </p>
-                                    @if (! empty($activity->meta['note']))
-                                        <p class="mt-1 text-sm text-gray-500 italic">{{ $activity->meta['note'] }}</p>
-                                    @endif
-                                    <p class="mt-0.5 text-xs text-gray-500">
-                                        {{ __('by :actor', ['actor' => $activity->actor?->name ?? 'System']) }}
-                                    </p>
-                                </li>
-                            @endforeach
-                        </ol>
-                    @endif
                 </div>
             </div>
         </div>

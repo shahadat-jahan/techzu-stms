@@ -8,7 +8,6 @@ use App\Http\Requests\StoreTicketRequest;
 use App\Http\Requests\UpdateTicketRequest;
 use App\Models\Category;
 use App\Models\Ticket;
-use App\Models\User;
 use App\Services\TicketService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -50,20 +49,36 @@ class TicketController extends Controller
 
     public function show(Request $request, Ticket $ticket): View
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('view', $ticket);
 
         $ticket->load(['customer', 'agent', 'category']);
-        $activities = $ticket->activities()
+
+        $user = $request->user();
+
+        $replies = $ticket->visibleReplies($user)
+            ->with('user:id,name')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $attachments = $ticket->visibleAttachments($user)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $activities = $ticket->visibleActivities($user)
             ->with('actor')
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
 
-        return view('tickets.show', compact('ticket', 'activities'));
+        return view('tickets.show', compact('ticket', 'replies', 'attachments', 'activities'));
     }
 
     public function create(): View
     {
+        $this->authorize('create', Ticket::class);
+
         $categories = $this->activeCategories();
 
         return view('tickets.create', compact('categories'));
@@ -71,6 +86,8 @@ class TicketController extends Controller
 
     public function store(StoreTicketRequest $request): RedirectResponse
     {
+        $this->authorize('create', Ticket::class);
+
         $ticket = $this->ticketService->create($request->validated(), $request->user());
 
         return Redirect::route('tickets.show', $ticket)
@@ -79,7 +96,7 @@ class TicketController extends Controller
 
     public function edit(Request $request, Ticket $ticket): View
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('update', $ticket);
 
         $categories = $this->activeCategories();
 
@@ -88,7 +105,7 @@ class TicketController extends Controller
 
     public function update(UpdateTicketRequest $request, Ticket $ticket): RedirectResponse
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('update', $ticket);
 
         $this->ticketService->update($ticket, $request->validated(), $request->user());
 
@@ -98,7 +115,7 @@ class TicketController extends Controller
 
     public function updateStatus(ChangeStatusRequest $request, Ticket $ticket): RedirectResponse
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('changeStatus', $ticket);
 
         $this->ticketService->changeStatus(
             $ticket,
@@ -112,7 +129,7 @@ class TicketController extends Controller
 
     public function resolve(Request $request, Ticket $ticket): RedirectResponse
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('resolve', $ticket);
 
         $this->ticketService->resolve($ticket, $request->user());
 
@@ -122,7 +139,7 @@ class TicketController extends Controller
 
     public function close(Request $request, Ticket $ticket): RedirectResponse
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('close', $ticket);
 
         $this->ticketService->close($ticket, $request->user());
 
@@ -132,7 +149,7 @@ class TicketController extends Controller
 
     public function reopen(Request $request, Ticket $ticket): RedirectResponse
     {
-        $this->ensureVisible($ticket, $request->user());
+        $this->authorize('reopen', $ticket);
 
         $this->ticketService->reopen($ticket, $request->user());
 
@@ -146,16 +163,5 @@ class TicketController extends Controller
     private function activeCategories(): Collection
     {
         return Category::where('is_active', true)->orderBy('name')->get();
-    }
-
-    /**
-     * Interim visibility guard; replaced by TicketPolicy authorization in Phase 4.
-     */
-    private function ensureVisible(Ticket $ticket, User $user): void
-    {
-        abort_unless(
-            Ticket::visibleTo($user)->whereKey($ticket)->exists(),
-            403
-        );
     }
 }

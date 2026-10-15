@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 class StoreTicketRequest extends FormRequest
 {
     /**
-     * Authorization moves to TicketPolicy in Phase 4.
+     * Authorization is enforced in the controller via TicketPolicy.
      */
     public function authorize(): bool
     {
