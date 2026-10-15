@@ -25,8 +25,9 @@ it('lets a customer create a ticket with a sequential number', function () {
         ->and($ticket->status)->toBe(TicketStatus::Open)
         ->and($ticket->priority)->toBe(Priority::High)
         ->and($ticket->created_by)->toBe($customer->id)
-        ->and($ticket->due_at)->toBeNull()
-        ->and($ticket->sla_warning_at)->toBeNull()
+        ->and($ticket->due_at)->not->toBeNull()
+        ->and($ticket->sla_warning_at)->not->toBeNull()
+        ->and($ticket->sla_warning_at->lessThan($ticket->due_at))->toBeTrue()
         ->and($ticket->activities()->where('action', 'created')->count())->toBe(1);
 });
 

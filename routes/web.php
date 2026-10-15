@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BusinessHourController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SlaPolicyController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketReplyController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +44,13 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
 Route::middleware('auth')->prefix('attachments')->name('attachments.')->group(function () {
     Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
     Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
+});
+
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/sla-policies', [SlaPolicyController::class, 'index'])->name('sla-policies.index');
+    Route::patch('/sla-policies/{slaPolicy}', [SlaPolicyController::class, 'update'])->name('sla-policies.update');
+    Route::get('/business-hours', [BusinessHourController::class, 'index'])->name('business-hours.index');
+    Route::patch('/business-hours/{businessHour}', [BusinessHourController::class, 'update'])->name('business-hours.update');
 });
 
 require __DIR__.'/auth.php';

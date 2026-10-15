@@ -20,6 +20,7 @@ class TicketService
         private readonly TicketNumberGeneratorService $numberGenerator,
         private readonly ActivityLoggerService $activityLogger,
         private readonly TicketAssignmentService $assignmentService,
+        private readonly SlaService $slaService,
     ) {}
 
     public function create(array $data, User $creator): Ticket
@@ -40,9 +41,8 @@ class TicketService
                 'category_id' => $data['category_id'],
                 'created_by' => $creator->id,
                 'external_ref' => $data['external_ref'] ?? null,
-                // TODO: Phase 6 - SlaService calculates due_at / sla_warning_at from the priority's policy.
-                'due_at' => null,
-                'sla_warning_at' => null,
+                'due_at' => $this->slaService->calculateDue($priority, now()),
+                'sla_warning_at' => $this->slaService->calculateWarning($priority, now()),
             ]);
 
             $this->activityLogger->logCreated($ticket, $creator);
@@ -89,6 +89,9 @@ class TicketService
 
             if ($oldPriority !== $ticket->priority) {
                 $this->activityLogger->logPriorityChanged($ticket, $oldPriority, $ticket->priority, $actor);
+
+                // Recalculate SLA when priority changes
+                $this->recalculateSla($ticket, $actor);
             }
 
             $detailsChanged = array_values(array_diff($changedFields, ['priority']));
@@ -118,6 +121,9 @@ class TicketService
             $ticket->save();
 
             $this->activityLogger->logPriorityChanged($ticket, $oldPriority, $newPriority, $actor);
+
+            // Recalculate SLA when priority changes
+            $this->recalculateSla($ticket, $actor);
 
             return $ticket;
         });
@@ -243,5 +249,21 @@ class TicketService
             'reopened' => $this->activityLogger->logReopened($ticket, $oldStatus, $newStatus, $actor),
             default => $this->activityLogger->logStatusChanged($ticket, $oldStatus, $newStatus, $actor, $note),
         };
+    }
+
+    private function recalculateSla(Ticket $ticket, User $actor): void
+    {
+        $oldDueAt = $ticket->due_at;
+        $oldWarningAt = $ticket->sla_warning_at;
+
+        $this->slaService->applyTo($ticket);
+
+        if ($oldDueAt?->eq($ticket->due_at) === true && $oldWarningAt?->eq($ticket->sla_warning_at) === true) {
+            return;
+        }
+
+        $ticket->save();
+
+        $this->activityLogger->logSlaRecalculated($ticket, $oldDueAt, $oldWarningAt, $ticket->due_at, $ticket->sla_warning_at, $actor);
     }
 }

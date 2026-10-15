@@ -23,6 +23,16 @@
                     <x-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
                         {{ __('Resolved') }}
                     </x-nav-link>
+
+                    @can('manageSlaSettings')
+                        <x-nav-link :href="route('admin.sla-policies.index')" :active="request()->routeIs('admin.sla-policies.*')">
+                            {{ __('SLA Policies') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
+                            {{ __('Business Hours') }}
+                        </x-nav-link>
+                    @endcan
                 </div>
             </div>
 
@@ -94,6 +104,16 @@
             <x-responsive-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
                 {{ __('Resolved') }}
             </x-responsive-nav-link>
+
+            @can('manageSlaSettings')
+                <x-responsive-nav-link :href="route('admin.sla-policies.index')" :active="request()->routeIs('admin.sla-policies.*')">
+                    {{ __('SLA Policies') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
+                    {{ __('Business Hours') }}
+                </x-responsive-nav-link>
+            @endcan
         </div>
 
         <!-- Responsive Settings Options -->

@@ -279,13 +279,15 @@
                             </div>
                             <div class="flex justify-between gap-4 px-6 py-3">
                                 <dt class="text-gray-500">Created</dt>
-                                <dd class="font-medium text-gray-900">{{ $ticket->created_at->format('M j, Y H:i') }}
+                                <dd class="font-medium text-gray-900">
+                                    <x-timestamp :value="$ticket->created_at" class="font-medium text-gray-900" />
                                 </dd>
                             </div>
                             <div class="flex justify-between gap-4 px-6 py-3">
                                 <dt class="text-gray-500">Due</dt>
                                 <dd class="font-medium text-gray-900">
-                                    {{ $ticket->due_at?->format('M j, Y H:i') ?? '—' }}
+                                    <x-timestamp :value="$ticket->due_at" class="block font-medium text-gray-900" />
+                                    <x-sla-badge :status="$ticket->slaStatus()" class="mt-1" />
                                 </dd>
                             </div>
                         </dl>
@@ -309,7 +311,7 @@
                                                     {{ ucwords(str_replace('_', ' ', $activity->action)) }}
                                                 </span>
                                                 <span class="text-xs text-gray-400">
-                                                    {{ $activity->created_at->format('M j, Y H:i:s') }}
+                                                    <x-timestamp :value="$activity->created_at" format="M j, Y H:i:s" class="text-xs text-gray-400" />
                                                 </span>
                                             </div>
                                             <p class="mt-1 text-sm text-gray-700">

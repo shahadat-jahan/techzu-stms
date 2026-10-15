@@ -123,5 +123,5 @@ it('renders the due column for tickets with an sla target', function () {
     $this->actingAs($admin)->get(route('tickets.index'))
         ->assertOk()
         ->assertSee('Due')
-        ->assertSee($dueAt->format('M j, Y H:i'));
+        ->assertSee($dueAt->tz(config('support.business_timezone'))->format('M j, Y H:i'));
 });

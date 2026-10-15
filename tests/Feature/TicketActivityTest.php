@@ -90,7 +90,8 @@ it('logs separate activities when details and priority change together', functio
         'priority' => Priority::High->value,
     ], $agent);
 
-    expect(TicketActivity::orderBy('id')->pluck('action')->all())->toBe(['priority_changed', 'updated']);
+    expect(TicketActivity::orderBy('id')->pluck('action')->all())
+        ->toBe(['priority_changed', 'sla_recalculated', 'updated']);
 });
 
 it('renders the activity timeline in chronological order on the ticket page', function () {
@@ -123,6 +124,6 @@ it('renders the activity timeline in chronological order on the ticket page', fu
         ->assertSeeInOrder(['First activity entry', 'Second activity entry'])
         ->assertSee('by '.$firstActor->name)
         ->assertSee('by '.$secondActor->name)
-        ->assertSee($firstTime->format('M j, Y H:i:s'))
-        ->assertSee($secondTime->format('M j, Y H:i:s'));
+        ->assertSee($firstTime->tz(config('support.business_timezone'))->format('M j, Y H:i:s'))
+        ->assertSee($secondTime->tz(config('support.business_timezone'))->format('M j, Y H:i:s'));
 });

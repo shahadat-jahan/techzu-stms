@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BusinessHour;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,6 +17,26 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function (): void {
+        // Business hours are baseline reference data that SLA calculation depends on.
+        foreach ([0, 1, 2, 3, 4] as $day) {
+            BusinessHour::create([
+                'day_of_week' => $day,
+                'is_open' => true,
+                'open_time' => '09:00:00',
+                'close_time' => '18:00:00',
+            ]);
+        }
+
+        foreach ([5, 6] as $day) {
+            BusinessHour::create([
+                'day_of_week' => $day,
+                'is_open' => false,
+                'open_time' => '09:00:00',
+                'close_time' => '18:00:00',
+            ]);
+        }
+    })
     ->in('Feature');
 
 /*
@@ -44,7 +65,7 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function businessClock(\Carbon\CarbonInterface $moment): string
 {
-    // ..
+    return $moment->tz(config('support.business_timezone'))->format('Y-m-d H:i:s');
 }

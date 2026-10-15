@@ -7,6 +7,7 @@ enum SlaStatus: string
     case Within = 'within';
     case Approaching = 'approaching';
     case Breached = 'breached';
+    case Met = 'met';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum SlaStatus: string
             self::Within => 'Within SLA',
             self::Approaching => 'Approaching Breach',
             self::Breached => 'SLA Breached',
+            self::Met => 'SLA Met',
         };
     }
 }

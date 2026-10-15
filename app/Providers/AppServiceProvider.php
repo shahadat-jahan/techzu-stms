@@ -34,5 +34,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Attachment::class, AttachmentPolicy::class);
 
         Gate::define('manageTickets', fn (User $user): bool => $user->isAgent() || $user->isAdmin());
+        Gate::define('manageSlaSettings', fn (User $user): bool => $user->isAdmin());
     }
 }

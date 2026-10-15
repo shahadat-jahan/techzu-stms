@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Priority;
+use App\Enums\SlaStatus;
 use App\Enums\TicketStatus;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -27,8 +28,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'sla_warning_at',
     'resolved_at',
     'closed_at',
-    'escalated_approaching_at',
-    'escalated_breached_at',
+    'warning_notified_at',
+    'escalated_at',
     'last_assigned_at',
     'external_ref',
 ])]
@@ -46,8 +47,8 @@ class Ticket extends Model
             'sla_warning_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
-            'escalated_approaching_at' => 'datetime',
-            'escalated_breached_at' => 'datetime',
+            'warning_notified_at' => 'datetime',
+            'escalated_at' => 'datetime',
             'last_assigned_at' => 'datetime',
         ];
     }
@@ -162,5 +163,37 @@ class Ticket extends Model
                 $warningNotReached->whereNull('sla_warning_at')
                     ->orWhere('sla_warning_at', '>', now());
             });
+    }
+
+    /**
+     * Derive the badge status for a single ticket. Resolved and closed tickets
+     * report their final outcome instead of a live countdown.
+     */
+    public function slaStatus(): SlaStatus
+    {
+        if ($this->due_at === null) {
+            return SlaStatus::Within;
+        }
+
+        if (! $this->status->isActive()) {
+            return $this->finalSlaStatus();
+        }
+
+        return match (true) {
+            $this->due_at->isPast() => SlaStatus::Breached,
+            $this->sla_warning_at !== null && $this->sla_warning_at->isPast() => SlaStatus::Approaching,
+            default => SlaStatus::Within,
+        };
+    }
+
+    private function finalSlaStatus(): SlaStatus
+    {
+        $completedAt = $this->resolved_at ?? $this->closed_at;
+
+        if ($completedAt === null) {
+            return SlaStatus::Within;
+        }
+
+        return $completedAt->lessThanOrEqualTo($this->due_at) ? SlaStatus::Met : SlaStatus::Breached;
     }
 }

@@ -30,12 +30,13 @@
                             <td class="max-w-xs truncate px-4 py-3 text-gray-900">{{ $ticket->subject }}</td>
                             <td class="whitespace-nowrap px-4 py-3"><x-priority-badge :priority="$ticket->priority" /></td>
                             <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$ticket->status" /></td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-500">
-                                {{ $ticket->due_at?->format('M j, Y H:i') ?? '—' }}
+                            <td class="whitespace-nowrap px-4 py-3">
+                                <x-timestamp :value="$ticket->due_at" class="block" />
+                                <x-sla-badge :status="$ticket->slaStatus()" class="mt-1" />
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->category?->name ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->agent?->name ?? 'Unassigned' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-500">{{ $ticket->created_at->format('M j, Y H:i') }}</td>
+                            <td class="whitespace-nowrap px-4 py-3"><x-timestamp :value="$ticket->created_at" /></td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
                                 <a href="{{ route('tickets.show', $ticket) }}" class="font-medium text-indigo-600 hover:text-indigo-900">
                                     View
