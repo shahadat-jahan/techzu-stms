@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\BusinessHour;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -65,7 +66,7 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function businessClock(\Carbon\CarbonInterface $moment): string
+function businessClock(CarbonInterface $moment): string
 {
     return $moment->tz(config('support.business_timezone'))->format('Y-m-d H:i:s');
 }

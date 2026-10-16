@@ -7,15 +7,13 @@ use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Services\TicketService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Illuminate\Support\Facades\Redirect;
 
 class AttachmentController extends Controller
 {
-    public function __construct(private readonly TicketService $ticketService)
-    {
-    }
+    public function __construct(private readonly TicketService $ticketService) {}
 
     public function store(StoreAttachmentRequest $request, Ticket $ticket): RedirectResponse
     {

@@ -4,6 +4,11 @@ namespace App\Services;
 
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
+use App\Events\AgentReplied;
+use App\Events\TicketClosed;
+use App\Events\TicketCreated;
+use App\Events\TicketCustomerReplied;
+use App\Events\TicketResolved;
 use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\TicketReply;
@@ -46,6 +51,11 @@ class TicketService
             ]);
 
             $this->activityLogger->logCreated($ticket, $creator);
+
+            // Dispatch TicketCreated event after commit
+            DB::afterCommit(function () use ($ticket): void {
+                TicketCreated::dispatch($ticket);
+            });
 
             // Auto-assignment after ticket creation
             if ($ticket->assigned_to === null) {
@@ -166,6 +176,17 @@ class TicketService
 
             $this->activityLogger->logReplyCreated($ticket, $reply, $creator);
 
+            // Dispatch appropriate reply events based on reply type and creator role
+            DB::afterCommit(function () use ($reply, $creator): void {
+                if (! $reply->is_internal) {
+                    if ($creator->isCustomer()) {
+                        TicketCustomerReplied::dispatch($reply);
+                    } else {
+                        AgentReplied::dispatch($reply);
+                    }
+                }
+            });
+
             if (! $reply->is_internal
                 && $creator->isCustomer()
                 && $ticket->status === TicketStatus::WaitingForCustomer) {
@@ -243,12 +264,21 @@ class TicketService
 
     private function logTransition(Ticket $ticket, TicketStatus $oldStatus, TicketStatus $newStatus, User $actor, string $action, ?string $note): void
     {
-        match ($action) {
-            'resolved' => $this->activityLogger->logResolved($ticket, $oldStatus, $actor),
-            'closed' => $this->activityLogger->logClosed($ticket, $oldStatus, $actor),
-            'reopened' => $this->activityLogger->logReopened($ticket, $oldStatus, $newStatus, $actor),
-            default => $this->activityLogger->logStatusChanged($ticket, $oldStatus, $newStatus, $actor, $note),
-        };
+        if ($action === 'resolved') {
+            $this->activityLogger->logResolved($ticket, $oldStatus, $actor);
+            DB::afterCommit(function () use ($ticket): void {
+                TicketResolved::dispatch($ticket);
+            });
+        } elseif ($action === 'closed') {
+            $this->activityLogger->logClosed($ticket, $oldStatus, $actor);
+            DB::afterCommit(function () use ($ticket): void {
+                TicketClosed::dispatch($ticket);
+            });
+        } elseif ($action === 'reopened') {
+            $this->activityLogger->logReopened($ticket, $oldStatus, $newStatus, $actor);
+        } else {
+            $this->activityLogger->logStatusChanged($ticket, $oldStatus, $newStatus, $actor, $note);
+        }
     }
 
     private function recalculateSla(Ticket $ticket, User $actor): void

@@ -205,6 +205,7 @@ class TicketController extends Controller
         $this->authorize('assign', Ticket::class);
 
         $results = $this->assignmentService->autoAssignUnassigned($request->user());
+
         return back()->with('success', "Auto-assigned {$results['assigned']} tickets, skipped {$results['skipped']}.");
     }
 

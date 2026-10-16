@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BusinessHourController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SlaPolicyController;
 use App\Http\Controllers\TicketController;
@@ -51,6 +52,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::patch('/sla-policies/{slaPolicy}', [SlaPolicyController::class, 'update'])->name('sla-policies.update');
     Route::get('/business-hours', [BusinessHourController::class, 'index'])->name('business-hours.index');
     Route::patch('/business-hours/{businessHour}', [BusinessHourController::class, 'update'])->name('business-hours.update');
+});
+
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::post('/{notification}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
 });
 
 require __DIR__.'/auth.php';

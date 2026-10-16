@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\Role;
-
 use App\Models\User;
 
 test('registration with role=admin creates customer user', function () {

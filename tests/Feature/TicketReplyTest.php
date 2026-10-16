@@ -57,7 +57,6 @@ it('updates the ticket when the customer sends an internal note', function () {
         ->and($ticket->activities()->where('action', 'internal_note_added')->count())->toBe(1);
 });
 
-
 it('transitions a waiting-for-customer ticket to in_progress on customer reply', function () {
     $customer = User::factory()->create();
     $ticket = Ticket::factory()->status(TicketStatus::WaitingForCustomer)->create(['created_by' => $customer->id]);

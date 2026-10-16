@@ -67,7 +67,9 @@ class SlaCheckCommand extends Command
                 $lockedTicket->warning_notified_at = now();
                 $lockedTicket->save();
 
-                TicketSlaApproaching::dispatch($lockedTicket);
+                DB::afterCommit(function () use ($lockedTicket): void {
+                    TicketSlaApproaching::dispatch($lockedTicket);
+                });
             });
         } catch (\Exception $e) {
             $this->error("Failed to notify approaching SLA for ticket {$ticket->id}: {$e->getMessage()}");
@@ -93,7 +95,9 @@ class SlaCheckCommand extends Command
                     'meta' => ['message' => 'SLA deadline breached; ticket escalated.'],
                 ]);
 
-                TicketSlaBreached::dispatch($lockedTicket);
+                DB::afterCommit(function () use ($lockedTicket): void {
+                    TicketSlaBreached::dispatch($lockedTicket);
+                });
             });
         } catch (\Exception $e) {
             $this->error("Failed to escalate ticket {$ticket->id}: {$e->getMessage()}");

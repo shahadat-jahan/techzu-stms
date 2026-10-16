@@ -19,8 +19,8 @@ class AssignTicketRequest extends FormRequest
                     if (! $user || ! $user->isAgent() || ! $user->isAvailable()) {
                         $fail('The selected agent is not available for assignment.');
                     }
-                }
-            ]
+                },
+            ],
         ];
     }
 

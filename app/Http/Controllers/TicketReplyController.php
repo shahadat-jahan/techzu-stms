@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Redirect;
 
 class TicketReplyController extends Controller
 {
-    public function __construct(private readonly TicketService $ticketService)
-    {
-    }
+    public function __construct(private readonly TicketService $ticketService) {}
 
     public function store(StoreTicketReplyRequest $request, Ticket $ticket): RedirectResponse
     {

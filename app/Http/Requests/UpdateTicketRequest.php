@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Priority;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,7 +22,7 @@ class UpdateTicketRequest extends FormRequest
      * priority and category. Keys absent from these rules are filtered out of
      * validated() and therefore never reach the service.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

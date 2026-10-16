@@ -14,7 +14,7 @@ class TicketNumberGeneratorService
             'last_number' => 0,
         ]);
 
-        //Lock the row to prevent race condition
+        // Lock the row to prevent race condition
         $sequence = DB::table('ticket_sequences')
             ->where('year', $year)
             ->lockForUpdate()
