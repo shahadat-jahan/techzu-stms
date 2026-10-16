@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Priority;
 use App\Enums\SlaStatus;
 use App\Enums\TicketStatus;
+use App\Filters\TicketFilter;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -134,6 +135,11 @@ class Ticket extends Model
             }),
             default => $query->where('created_by', $user->id),
         };
+    }
+
+    public function scopeFilter(Builder $query, User $user, array $filters): Builder
+    {
+        return app(TicketFilter::class)->apply($query, $user, $filters);
     }
 
     public function scopeSlaBreached(Builder $query): Builder

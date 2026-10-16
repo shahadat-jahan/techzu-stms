@@ -1,6 +1,23 @@
+@php
+    $hasActiveFilters = request()->hasAny([
+        'keyword', 'number', 'status', 'priority', 'category',
+        'assigned_to', 'customer_id', 'created_from', 'created_to', 'sla_status',
+    ]);
+@endphp
+
 @if ($tickets->isEmpty())
-    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6 text-sm text-gray-500">{{ $emptyMessage ?? 'No tickets found.' }}</div>
+    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-12 text-center">
+        <h3 class="mt-2 text-sm font-semibold text-gray-900">No tickets found</h3>
+        <p class="mt-1 text-sm text-gray-500">
+            {{ $hasActiveFilters ? 'No tickets match your filter criteria.' : ($emptyMessage ?? 'No tickets available.') }}
+        </p>
+        @if ($hasActiveFilters)
+            <div class="mt-6">
+                <a href="{{ url()->current() }}" class="inline-flex items-center rounded-md bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-100">
+                    Clear all filters
+                </a>
+            </div>
+        @endif
     </div>
 @else
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">

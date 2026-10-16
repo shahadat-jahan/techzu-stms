@@ -125,3 +125,17 @@ it('renders the due column for tickets with an sla target', function () {
         ->assertSee('Due')
         ->assertSee($dueAt->tz(config('support.business_timezone'))->format('M j, Y H:i'));
 });
+
+it('renders the filter bar with active values populated from query string', function () {
+    $admin = User::factory()->admin()->create();
+
+    $response = $this->actingAs($admin)->get(route('tickets.index', [
+        'keyword' => 'database error',
+        'priority' => 'critical',
+    ]));
+
+    $response->assertOk()
+        ->assertSee('value="database error"', false)
+        ->assertSee('value="critical" selected', false)
+        ->assertSee('Reset Filters');
+});
