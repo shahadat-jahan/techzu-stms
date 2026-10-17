@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\TicketImportService;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\File;
 
 it('sends ticket created and assigned notifications after CSV import', function () {
     $customer = User::factory()->create([
@@ -32,6 +33,7 @@ it('sends ticket created and assigned notifications after CSV import', function 
         ."EXT-001,Test Subject,Test Description,high,Technical Support,open,customer@example.com,agent@example.com,\n";
 
     $filePath = 'private/imports/test.csv';
+    File::ensureDirectoryExists(storage_path('app/private/imports'), 0755, true);
     file_put_contents(storage_path("app/{$filePath}"), $csvContent);
 
     $import = Import::create([
