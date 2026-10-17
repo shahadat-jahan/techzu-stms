@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        User::factory()->unavailableAgent()->create([
+        User::factory()->availableAgent()->create([
             'name' => 'Agent 3',
             'email' => 'agent3@techzu.com',
             'password' => bcrypt('password'),

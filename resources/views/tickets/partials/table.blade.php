@@ -44,7 +44,7 @@
                                     {{ $ticket->ticket_number }}
                                 </a>
                             </td>
-                            <td class="max-w-xs truncate px-4 py-3 text-gray-900">{{ $ticket->subject }}</td>
+                            <td class="max-w-xs px-4 py-3 text-gray-900">{{ $ticket->subject }}</td>
                             <td class="whitespace-nowrap px-4 py-3"><x-priority-badge :priority="$ticket->priority" /></td>
                             <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$ticket->status" /></td>
                             <td class="whitespace-nowrap px-4 py-3">
@@ -53,7 +53,7 @@
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->category?->name ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->agent?->name ?? 'Unassigned' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3"><x-timestamp :value="$ticket->created_at" /></td>
+                            <td class="whitespace-nowrap px-4 py-3"><x-timestamp :value="$ticket->created_at" format="Y-m-d h:i A" /></td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
                                 <a href="{{ route('tickets.show', $ticket) }}" class="font-medium text-indigo-600 hover:text-indigo-900">
                                     View

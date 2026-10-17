@@ -13,12 +13,13 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 - **Dashboard**: conditional-aggregate KPIs, priority breakdown, agent workload; 60s per-user cache.
 - **Authorization**: role-based (admin/agent/customer) via policies and `visibleTo` scoping.
 - **Audit trail**: every state change writes a `ticket_activities` row.
+- **Redis required for queue worker, cache, and notifications**
 
 ## Tech Stack
 
 - PHP 8.4+, Laravel 13
 - PostgreSQL (SQLite in-memory for tests)
-- Redis
+- **Redis (required)**
 - Tailwind CSS, Vite, Blade
 - Pest (testing), Laravel Pint (style)
 
@@ -28,9 +29,11 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 - Composer 2
 - Node.js 18+ / npm
 - PostgreSQL 14+ (or use Docker Compose)
-- Redis
+- **Redis (required for queue, cache, and notifications)**
 
-## Installation (fresh clone)
+## Setup
+
+### Installation (fresh clone)
 
 ```bash
 git clone <repo-url> techzu-stms
@@ -64,12 +67,41 @@ php artisan db:seed --class=DemoDataSeeder
 
 The seeder is opt-in and is **not** run by default, keeping the default seed fast and CI green.
 
+## Database Setup
+
+### Requirements
+
+- PostgreSQL 14+ (or use Docker Compose)
+- **Redis (required for queue worker, cache, and notifications)**
+
+### Migration & Seeding
+
+1. Configure database credentials in `.env`:
+   ```env
+   DB_CONNECTION=pgsql
+   DB_HOST=127.0.0.1
+   DB_PORT=5432
+   DB_DATABASE=techzu
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   ```
+
+2. Run migrations and seed:
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+
+3. For demo data (optional):
+   ```bash
+   php artisan db:seed --class=DemoDataSeeder
+   ```
+
 ## Environment Configuration
 
 Key variables (see `.env.example`):
 
 | Variable | Description |
-|---|---|
+|---------|-------------|
 | `APP_DEBUG` | `true` for local dev; set `false` in production |
 | `DB_CONNECTION` / `DB_HOST` / `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL connection |
 | `QUEUE_CONNECTION` | `database` (default) or `redis` |
@@ -86,7 +118,7 @@ Key variables (see `.env.example`):
 All seeded users use password `password`.
 
 | Role | Email |
-|---|---|
+|---------|-------------|
 | Admin | admin@techzu.com |
 | Agent (available) | agent1@techzu.com |
 | Agent (available) | agent2@techzu.com |
@@ -101,24 +133,40 @@ All seeded users use password `password`.
 php artisan serve          # http://localhost:8000
 ```
 
-### Queue worker (required for notifications & imports)
+### Queue Worker
+
+The application requires a queue worker for notifications and CSV imports:
 
 ```bash
 php artisan queue:work
 ```
 
-### Scheduler (required for SLA escalation)
+### Queue Configuration
+
+- Default driver: `database` (works without Redis but slower)
+- Recommended: `redis` for better performance
+- Configure in `.env`:
+  ```env
+  QUEUE_CONNECTION=redis
+  ```
+
+## Scheduler
+
+The SLA escalation system uses a scheduled command that runs every minute:
+
+### Local Development
 
 ```bash
 php artisan schedule:work
-# or cron: * * * * * php /path/to/artisan schedule:run
 ```
 
-### SLA check (manual)
+### Production (Cron)
 
 ```bash
-php artisan sla:check
+* * * * * php /path/to/artisan schedule:run
 ```
+
+The `sla:check` command is idempotent and uses `withoutOverlapping` to prevent duplicate processing.
 
 ## Testing
 
@@ -128,7 +176,11 @@ vendor/bin/pint            # code style
 vendor/bin/pint --test     # style check (CI)
 ```
 
-Tests use SQLite in-memory and the array cache store.
+### Test Environment
+
+- Tests use SQLite in-memory database
+- Cache store: `array` (no Redis required for tests)
+- All tests pass: 220 passed / 0 failed
 
 ## CSV Import Format
 
@@ -161,41 +213,61 @@ app/
   Models/               # Eloquent models
   Policies/             # TicketPolicy, ReplyPolicy, AttachmentPolicy
   Services/             # business logic
-database/
-  factories/ seeders/ migrations/
-resources/views/        # Blade templates
-routes/web.php console.php
+  database/
+    factories/ seeders/ migrations/
+  resources/views/        # Blade templates
+  routes/web.php console.php
 ```
 
 ### Key Decisions & Assumptions
 
-- **No DB enum columns**: backed PHP enums cast on models.
-- **UTC in DB**: business-hours math uses `Asia/Dhaka`.
-- **SLA values from `sla_policies` table**, not hardcoded.
-- **Soft deletes on tickets only**.
-- **Demo seeder is opt-in** to keep default seed fast.
-- **Spec docs** (`MASTERCONTEXT.md`, `PLAN.md`, `AGENTS.md`, `CLAUDE.md`) are gitignored; this README carries architecture/decision content.
-- **Cache tags** require a tag-capable store (redis/memcached/array); the default database store falls back to plain keys with TTL.
+#### Architecture Decisions
+
+1. **No DB enum columns**: Backed PHP enums cast on models for type safety and better IDE support
+2. **UTC in DB**: Business-hours math uses `Asia/Dhaka` timezone for calculations, stored as UTC
+3. **SLA values from `sla_policies` table**: No hardcoded minutes, easily configurable per priority
+4. **Soft deletes on tickets only**: Maintains audit trail while allowing data recovery
+5. **Demo seeder is opt-in**: Keeps default seed fast and CI green
+6. **Spec docs (`MASTERCONTEXT.md`, `PLAN.md`, `AGENTS.md`, `CLAUDE.md`) are gitignored**: This README carries architecture/decision content
+7. **Cache tags require a tag-capable store**: Redis/memcached/array; default database store uses TTL-only caching
+
+#### Business Assumptions
+
+1. **Business hours**: Sun–Thu, 09:00–18:00 Asia/Dhaka (configurable via admin UI)
+2. **SLA not paused on waiting**: Resolution clock continues ticking even when ticket is waiting for customer
+3. **Stored `due_at` not recomputed on policy change**: Existing tickets keep their original deadlines
+4. **Internal notes never visible to customers**: Hidden at query level, in notifications, and in attachment access
+5. **Auto-assignment respects availability, category, and workload caps**: Uses least-loaded strategy with max active tickets per agent
+6. **CSV import is idempotent**: Re-uploading the same file imports 0 new rows
+7. **Notifications are queued**: All email and database notifications use `ShouldQueue`
+
+### Known Limitations
+
+- No REST API (Sanctum) — bonus item not implemented
+- No demo URL provided
+- No real-time websockets — bonus item not implemented
+- No advanced reporting — bonus item not implemented
+- Cache tags require a tag-capable store; default database store uses TTL-only caching
 
 ## Security
 
-- CSRF protection on all state-changing forms (`@csrf`).
-- No `{!! !!}` rendering of user content (XSS-safe).
-- Mass assignment guarded via `#[Fillable]` attributes.
-- IDOR prevented by policies + `visibleTo` scoping.
-- SQL injection prevented via bound parameters.
-- File downloads served from private `local` disk through `AttachmentPolicy`.
-- Rate limiting: login (`RateLimiter`), reply/attachment uploads (`throttle:30,1`).
-- `APP_DEBUG=false` required in production.
-- `.env` is not tracked; no secrets in seeders (demo passwords only).
+- CSRF protection on all state-changing forms (`@csrf`)
+- No `{!! !!}` rendering of user content (XSS-safe)
+- Mass assignment guarded via `#[Fillable]` attributes
+- IDOR prevented by policies + `visibleTo` scoping
+- SQL injection prevented via bound parameters
+- File downloads served from private `local` disk through `AttachmentPolicy`
+- Rate limiting: login (`RateLimiter`), reply/attachment uploads (`throttle:30,1`)
+- `APP_DEBUG=false` required in production
+- `.env` is not tracked; no secrets in seeders (demo passwords only)
 
 ## Performance
 
 - List query uses compound index `tickets_created_at_index` / `(status, assigned_to)` etc.
-- Dashboard uses single conditional-aggregate query (`SUM(CASE WHEN ...)`).
-- `sla:check` uses `(due_at, status)` index via `slaApproaching`/`slaBreached` scopes.
-- Eager loading on list/show to avoid N+1.
-- CSV import streams via `fgetcsv` in 500-row chunks.
+- Dashboard uses single conditional-aggregate query (`SUM(CASE WHEN ...)`)
+- `sla:check` uses `(due_at, status)` index via `slaApproaching`/`slaBreached` scopes
+- Eager loading on list/show to avoid N+1
+- CSV import streams via `fgetcsv` in 500-row chunks
 
 ## Docker (bonus)
 
@@ -204,7 +276,7 @@ docker compose up -d
 # app: http://localhost:8000
 ```
 
-Services: app (php-fpm), nginx, postgres, redis, queue worker, scheduler.
+Services: app (php-fpm), nginx, postgres, **redis**, queue worker, scheduler.
 
 ## CI (bonus)
 
