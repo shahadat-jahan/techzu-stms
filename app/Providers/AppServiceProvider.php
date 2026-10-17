@@ -35,5 +35,6 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('manageTickets', fn (User $user): bool => $user->isAgent() || $user->isAdmin());
         Gate::define('manageSlaSettings', fn (User $user): bool => $user->isAdmin());
+        Gate::define('manageImports', fn (User $user): bool => $user->isAdmin());
     }
 }

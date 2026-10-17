@@ -32,6 +32,10 @@
                         <x-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
                             {{ __('Business Hours') }}
                         </x-nav-link>
+
+                        <x-nav-link :href="route('admin.imports.index')" :active="request()->routeIs('admin.imports.*')">
+                            {{ __('Import Tickets') }}
+                        </x-nav-link>
                     @endcan
                 </div>
             </div>
@@ -116,6 +120,10 @@
 
                     <x-responsive-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
                         {{ __('Business Hours') }}
+                    </x-responsive-nav-link>
+
+                    <x-responsive-nav-link :href="route('admin.imports.index')" :active="request()->routeIs('admin.imports.*')">
+                        {{ __('Import Tickets') }}
                     </x-responsive-nav-link>
                 @endcan
             </div>

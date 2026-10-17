@@ -9,6 +9,9 @@ return [
         'max_files' => env('SUPPORT_UPLOAD_MAX_FILES', 5),
         'allowed_mimes' => explode(',', env('SUPPORT_UPLOAD_ALLOWED_MIMES', 'pdf,doc,docx,jpg,jpeg,png,gif')),
     ],
+    'import' => [
+        'max_size' => env('SUPPORT_IMPORT_MAX_SIZE', 10), // MB
+    ],
     'pagination' => [
         'per_page' => env('SUPPORT_PAGINATION_PER_PAGE', 10),
         'load_more' => env('SUPPORT_PAGINATION_LOAD_MORE', true),

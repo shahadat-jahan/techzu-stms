@@ -3,6 +3,7 @@
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BusinessHourController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SlaPolicyController;
@@ -53,6 +54,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::patch('/sla-policies/{slaPolicy}', [SlaPolicyController::class, 'update'])->name('sla-policies.update');
     Route::get('/business-hours', [BusinessHourController::class, 'index'])->name('business-hours.index');
     Route::patch('/business-hours/{businessHour}', [BusinessHourController::class, 'update'])->name('business-hours.update');
+    Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
+    Route::post('/imports', [ImportController::class, 'store'])->name('imports.store');
+    Route::get('/imports/{import}', [ImportController::class, 'show'])->name('imports.show');
+    Route::get('/imports/{import}/progress', [ImportController::class, 'progress'])->name('imports.progress');
+    Route::get('/imports/{import}/failed-csv', [ImportController::class, 'failedCsv'])->name('imports.failed-csv');
 });
 
 Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'original_filename', 'path', 'status', 'total_rows'])]
+#[Fillable(['user_id', 'original_filename', 'path', 'status', 'total_rows', 'started_at', 'finished_at'])]
 class Import extends Model
 {
     /** @use HasFactory<ImportFactory> */
