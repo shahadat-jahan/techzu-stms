@@ -6,9 +6,22 @@ on:
   pull_request:
     branches: [develop, main]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: techzu_stms
+      DB_USERNAME: postgres
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
 
     services:
       postgres:
@@ -16,7 +29,8 @@ jobs:
         env:
           POSTGRES_DB: techzu_stms
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: secret
+          # Throwaway CI database, reachable only from the runner: no password.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -44,21 +58,7 @@ jobs:
       - name: Generate key
         run: php artisan key:generate
 
-      - name: Configure env
-        run: |
-          sed -i 's/DB_CONNECTION=pgsql/DB_CONNECTION=pgsql/' .env
-          sed -i 's/# DB_DATABASE=laravel/DB_DATABASE=techzu_stms/' .env
-          sed -i 's/# DB_USERNAME=root/DB_USERNAME=postgres/' .env
-          sed -i 's/# DB_PASSWORD=/DB_PASSWORD=secret/' .env
-          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
-
       - name: Migrate and seed
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_DATABASE: techzu_stms
-          DB_USERNAME: postgres
-          DB_PASSWORD: secret
         run: php artisan migrate --force --seed
 
       - name: Build assets
@@ -70,10 +70,4 @@ jobs:
         run: vendor/bin/pint --test
 
       - name: Run tests
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_DATABASE: techzu_stms
-          DB_USERNAME: postgres
-          DB_PASSWORD: secret
         run: php artisan test

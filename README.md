@@ -43,8 +43,15 @@ composer install
 cp .env.example .env
 php artisan key:generate
 
-# Configure DB_* in .env (PostgreSQL), then:
-php artisan migrate:fresh --seed
+# Set DB_PASSWORD (and other DB_* credentials) in .env for PostgreSQL:
+#   DB_CONNECTION=pgsql
+#   DB_HOST=127.0.0.1
+#   DB_PORT=5432
+#   DB_DATABASE=techzu_stms
+#   DB_USERNAME=postgres
+#   DB_PASSWORD=your_password
+
+php artisan migrate --seed
 
 npm install --ignore-scripts
 npm run build
@@ -238,6 +245,21 @@ app/
 3. **Stored `due_at` not recomputed on policy change**: Existing tickets keep their original deadlines
 4. **Internal notes never visible to customers**: Hidden at query level, in notifications, and in attachment access
 5. **Auto-assignment respects availability, category, and workload caps**: Uses least-loaded strategy with max active tickets per agent
+
+   **Strategy detail**: When a ticket is created (or an admin runs "Auto-assign Unassigned"), the `LeastLoadedAssignmentService` picks an agent:
+   - **Candidates**: available agents mapped to the ticket's category; fallback: all available agents
+   - **Skip**: agents at `max_active_tickets` (counting `open`/`in_progress`/`waiting_for_customer`)
+   - **Pick**: fewest active tickets; tie-break by oldest `last_assigned_at` (never-assigned agents first)
+   - **If none**: ticket is left unassigned
+   - **Concurrent accept**: atomic conditional update (`whereNull('assigned_to')`) — exactly one agent wins, the other gets 409
+
+6. **CSV import behavior**:
+   - `external_ref` is **required** — empty values are rejected per row
+   - Upload file is **deleted from storage** after processing (success or failure)
+   - `due_at`/`sla_warning_at` calculated from **import start time**, not CSV `created_at`
+   - Duplicates in DB and within the same file are both rejected per row
+   - Import fires **no notifications**; imported tickets get an `imported` activity entry
+   - Progress polled via JSON endpoint; failed rows downloadable as CSV error report
 6. **CSV import is idempotent**: Re-uploading the same file imports 0 new rows
 7. **Notifications are queued**: All email and database notifications use `ShouldQueue`
 
@@ -274,6 +296,13 @@ app/
 ```bash
 docker compose up -d
 # app: http://localhost:8000
+```
+
+After the containers start, run inside the app container:
+
+```bash
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --force --seed
 ```
 
 Services: app (php-fpm), nginx, postgres, **redis**, queue worker, scheduler.

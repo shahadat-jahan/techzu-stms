@@ -20,6 +20,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('import_id');
+            $table->index(['import_id', 'row_number']);
         });
     }
 

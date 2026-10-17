@@ -9,7 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\SlaService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;use Illuminate\Support\Carbon;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class DemoDataSeeder extends Seeder
