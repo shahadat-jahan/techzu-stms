@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class ProcessTicketImportJob implements ShouldQueue
 {
@@ -26,12 +27,18 @@ class ProcessTicketImportJob implements ShouldQueue
     {
         $this->import->update(['status' => 'processing', 'started_at' => now()]);
 
+        Log::channel('imports')->info('Import processing started', ['import_id' => $this->import->id]);
+
         // Service sets the final status (completed / completed_with_errors / failed)
         $ticketImporter->process($this->import);
+
+        Log::channel('imports')->info('Import processing finished', ['import_id' => $this->import->id]);
     }
 
     public function failed(\Throwable $exception): void
     {
+        Log::channel('imports')->error('Import job failed', ['import_id' => $this->import->id, 'exception' => $exception]);
+
         $this->import->update([
             'status' => 'failed',
             'error_message' => $exception->getMessage(),

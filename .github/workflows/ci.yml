@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: techzu_stms
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_pgsql, mbstring, bcmath, gd
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Copy env
+        run: cp .env.example .env
+
+      - name: Generate key
+        run: php artisan key:generate
+
+      - name: Configure env
+        run: |
+          sed -i 's/DB_CONNECTION=pgsql/DB_CONNECTION=pgsql/' .env
+          sed -i 's/# DB_DATABASE=laravel/DB_DATABASE=techzu_stms/' .env
+          sed -i 's/# DB_USERNAME=root/DB_USERNAME=postgres/' .env
+          sed -i 's/# DB_PASSWORD=/DB_PASSWORD=secret/' .env
+          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
+
+      - name: Migrate and seed
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: techzu_stms
+          DB_USERNAME: postgres
+          DB_PASSWORD: secret
+        run: php artisan migrate --force --seed
+
+      - name: Build assets
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
+
+      - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: techzu_stms
+          DB_USERNAME: postgres
+          DB_PASSWORD: secret
+        run: php artisan test

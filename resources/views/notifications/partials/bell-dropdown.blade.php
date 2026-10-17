@@ -25,16 +25,16 @@
             @if (auth()->user()->notifications()->count() > 0)
                 <div class="max-h-64 overflow-y-auto">
                     @foreach (auth()->user()->notifications()->latest()->take(5) as $notification)
-                        <a href="{{ route('notifications.index') }}" class="block px-4 py-3 hover:bg-gray-50 {{ $notification->read_at ? 'bg-white' : 'bg-blue-50' }}" data-notification-id="{{ $notification->id }}">
+                        <div class="block px-4 py-3 hover:bg-gray-50 {{ $notification->read_at ? 'bg-white' : 'bg-blue-50' }}" data-notification-id="{{ $notification->id }}">
                             <div class="flex items-start justify-between">
-                                <div class="flex-1">
+                                <a href="{{ route('notifications.index') }}" class="flex-1">
                                     <h4 class="text-sm font-medium text-gray-900 {{ $notification->read_at ? '' : 'font-semibold' }}">
                                         {{ $notification->data['subject'] ?? 'Notification' }}
                                     </h4>
                                     <p class="text-xs text-gray-600 mt-1">
                                         {{ $notification->created_at->diffForHumans() }}
                                     </p>
-                                </div>
+                                </a>
                                 @unless ($notification->read_at)
                                     <form method="POST" action="{{ route('notifications.markAsRead', $notification) }}" data-mark-as-read-form data-notification-id="{{ $notification->id }}">
                                         @csrf
@@ -44,7 +44,7 @@
                                     </form>
                                 @endunless
                             </div>
-                        </a>
+                        </div>
                     @endforeach
                 </div>
 

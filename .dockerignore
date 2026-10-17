@@ -1,0 +1,8 @@
+.git
+node_modules
+vendor
+storage/logs
+.env
+tests
+.kilo
+.idea

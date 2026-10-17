@@ -119,3 +119,37 @@ it('marks notification as read', function () {
 
     expect($notification->fresh()->read_at)->not->toBeNull();
 });
+
+it('marks notification as read for ajax requests with json response', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $notification = $user->notifications()->create([
+        'id' => (string) Str::uuid(),
+        'type' => 'App\\Notifications\\TicketCreatedNotification',
+        'data' => ['ticket_id' => 1, 'subject' => 'Test'],
+        'read_at' => null,
+    ]);
+
+    $response = $this->postJson("/notifications/{$notification->id}/mark-as-read");
+    $response->assertOk()->assertJson(['success' => true]);
+
+    expect($notification->fresh()->read_at)->not->toBeNull();
+});
+
+it('forbids marking another users notification as read', function () {
+    $owner = User::factory()->create();
+    $intruder = User::factory()->create();
+    $this->actingAs($intruder);
+
+    $notification = $owner->notifications()->create([
+        'id' => (string) Str::uuid(),
+        'type' => 'App\\Notifications\\TicketCreatedNotification',
+        'data' => ['ticket_id' => 1, 'subject' => 'Test'],
+        'read_at' => null,
+    ]);
+
+    $this->postJson("/notifications/{$notification->id}/mark-as-read")->assertNotFound();
+
+    expect($notification->fresh()->read_at)->toBeNull();
+});

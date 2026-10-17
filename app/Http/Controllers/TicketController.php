@@ -12,6 +12,7 @@ use App\Http\Requests\UpdateTicketRequest;
 use App\Models\Category;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DashboardService;
 use App\Services\TicketAssignmentService;
 use App\Services\TicketService;
 use Illuminate\Contracts\View\View;
@@ -25,6 +26,7 @@ class TicketController extends Controller
     public function __construct(
         private readonly TicketService $ticketService,
         private readonly TicketAssignmentService $assignmentService,
+        private readonly DashboardService $dashboardService,
     ) {}
 
     public function index(Request $request): View
@@ -166,6 +168,8 @@ class TicketController extends Controller
 
         $ticket = $this->ticketService->create($request->validated(), $request->user());
 
+        $this->dashboardService->flush();
+
         return Redirect::route('tickets.show', $ticket)
             ->with('success', "Ticket {$ticket->ticket_number} created successfully.");
     }
@@ -185,6 +189,8 @@ class TicketController extends Controller
 
         $this->ticketService->update($ticket, $request->validated(), $request->user());
 
+        $this->dashboardService->flush();
+
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket updated successfully.');
     }
@@ -199,6 +205,8 @@ class TicketController extends Controller
             $request->user(),
         );
 
+        $this->dashboardService->flush();
+
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket status updated successfully.');
     }
@@ -208,6 +216,8 @@ class TicketController extends Controller
         $this->authorize('resolve', $ticket);
 
         $this->ticketService->resolve($ticket, $request->user());
+
+        $this->dashboardService->flush();
 
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket resolved.');
@@ -219,6 +229,8 @@ class TicketController extends Controller
 
         $this->ticketService->close($ticket, $request->user());
 
+        $this->dashboardService->flush();
+
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket closed.');
     }
@@ -228,6 +240,8 @@ class TicketController extends Controller
         $this->authorize('reopen', $ticket);
 
         $this->ticketService->reopen($ticket, $request->user());
+
+        $this->dashboardService->flush();
 
         return Redirect::route('tickets.show', $ticket)
             ->with('success', 'Ticket reopened.');
@@ -242,6 +256,8 @@ class TicketController extends Controller
             return back()->with('error', 'Ticket was already assigned by another agent.');
         }
 
+        $this->dashboardService->flush();
+
         return back()->with('success', 'Ticket accepted successfully.');
     }
 
@@ -252,6 +268,8 @@ class TicketController extends Controller
         $agent = User::findOrFail($request->validated('user_id'));
         $this->assignmentService->assign($ticket, $agent, $request->user());
 
+        $this->dashboardService->flush();
+
         return back()->with('success', 'Ticket assigned successfully.');
     }
 
@@ -260,6 +278,8 @@ class TicketController extends Controller
         $this->authorize('assign', Ticket::class);
 
         $results = $this->assignmentService->autoAssignUnassigned($request->user());
+
+        $this->dashboardService->flush();
 
         return back()->with('success', "Auto-assigned {$results['assigned']} tickets, skipped {$results['skipped']}.");
     }

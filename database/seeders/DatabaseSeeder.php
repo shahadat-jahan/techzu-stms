@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             SlaPolicySeeder::class,
             BusinessHourSeeder::class,
+            // DemoDataSeeder::class, // opt-in: php artisan db:seed --class=DemoDataSeeder
         ]);
     }
 }

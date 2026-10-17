@@ -32,6 +32,9 @@
                                 </div>
                                 <x-input-error :messages="$errors->get('file')" class="mt-2" />
                                 <p class="text-xs text-gray-500 mt-1">CSV format: external_ref,subject,description,priority,category,status,customer_email,assigned_agent_email,created_at</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <a href="{{ asset('sample-import.csv') }}" class="text-indigo-600 hover:text-indigo-800 font-medium" download>Download Sample CSV</a>
+                                </p>
                             </div>
 
                             <div class="flex items-center gap-4">
