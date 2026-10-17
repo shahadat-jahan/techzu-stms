@@ -40,12 +40,12 @@
                                         </label>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <x-text-input name="open_time" type="time" class="w-32" :form="'hours-'.$businessHour->id"
+                                        <x-text-input name="open_time" type="time" class="w-35" :form="'hours-'.$businessHour->id"
                                             :value="old('open_time', $businessHour->open_time_input)" />
                                         <x-input-error :messages="$errors->get('open_time')" class="mt-1" />
                                     </td>
                                     <td class="px-4 py-3">
-                                        <x-text-input name="close_time" type="time" class="w-32" :form="'hours-'.$businessHour->id"
+                                        <x-text-input name="close_time" type="time" class="w-35" :form="'hours-'.$businessHour->id"
                                             :value="old('close_time', $businessHour->close_time_input)" />
                                         <x-input-error :messages="$errors->get('close_time')" class="mt-1" />
                                     </td>

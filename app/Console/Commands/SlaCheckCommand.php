@@ -7,6 +7,7 @@ use App\Events\TicketSlaBreached;
 use App\Models\Ticket;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SlaCheckCommand extends Command
 {
@@ -23,10 +24,12 @@ class SlaCheckCommand extends Command
             $this->escalateBreachedTickets();
 
             $this->info('SLA check completed successfully.');
+            Log::channel('sla')->info('SLA check completed successfully.');
 
             return self::SUCCESS;
         } catch (\Exception $e) {
             $this->error("SLA check failed: {$e->getMessage()}");
+            Log::channel('sla')->error('SLA check failed', ['exception' => $e]);
 
             return self::FAILURE;
         }
@@ -73,6 +76,7 @@ class SlaCheckCommand extends Command
             });
         } catch (\Exception $e) {
             $this->error("Failed to notify approaching SLA for ticket {$ticket->id}: {$e->getMessage()}");
+            Log::channel('sla')->error("Failed to notify approaching SLA for ticket {$ticket->id}", ['exception' => $e]);
         }
     }
 
@@ -101,6 +105,7 @@ class SlaCheckCommand extends Command
             });
         } catch (\Exception $e) {
             $this->error("Failed to escalate ticket {$ticket->id}: {$e->getMessage()}");
+            Log::channel('sla')->error("Failed to escalate ticket {$ticket->id}", ['exception' => $e]);
         }
     }
 }

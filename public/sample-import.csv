@@ -1,0 +1,11 @@
+external_ref,subject,description,priority,category,status,customer_email,assigned_agent_email,created_at
+SAMPLE-001,Login issue on mobile app,User cannot log in from iOS app,high,Technical Support,open,customer1@techzu.com,agent1@techzu.com,2026-09-01 10:00:00
+SAMPLE-002,Billing discrepancy last month,Invoice total does not match usage,medium,Billing,open,customer2@techzu.com,agent2@techzu.com,2026-09-02 11:30:00
+SAMPLE-003,Feature request dark mode,Please add dark mode to dashboard,low,Feature Request,open,customer3@techzu.com,,2026-09-03 09:15:00
+SAMPLE-004,App crashes on export,Export to CSV crashes the app,critical,Bug Report,in_progress,customer1@techzu.com,agent1@techzu.com,2026-09-04 14:20:00
+SAMPLE-005,General question about SLA,How are SLA hours calculated,low,General Inquiry,waiting_for_customer,customer2@techzu.com,agent2@techzu.com,2026-09-05 08:45:00
+SAMPLE-006,Password reset email not received,Reset link never arrives,high,Technical Support,resolved,customer3@techzu.com,agent1@techzu.com,2026-09-06 16:00:00
+SAMPLE-007,Refund request for duplicate charge,Charged twice for same invoice,medium,Billing,closed,customer1@techzu.com,agent2@techzu.com,2026-09-07 12:10:00
+SAMPLE-008,Slow dashboard loading,Dashboard takes 10s to load,medium,Technical Support,open,customer2@techzu.com,,2026-09-08 13:25:00
+SAMPLE-009,Invalid priority row,This row has a bad priority value,urgent,General Inquiry,open,customer3@techzu.com,,2026-09-09 10:00:00
+SAMPLE-001,Duplicate external ref row,This duplicates SAMPLE-001,low,General Inquiry,open,customer1@techzu.com,,2026-09-10 10:00:00

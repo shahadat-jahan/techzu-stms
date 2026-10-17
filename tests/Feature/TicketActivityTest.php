@@ -124,6 +124,6 @@ it('renders the activity timeline in chronological order on the ticket page', fu
         ->assertSeeInOrder(['First activity entry', 'Second activity entry'])
         ->assertSee('by '.$firstActor->name)
         ->assertSee('by '.$secondActor->name)
-        ->assertSee($firstTime->tz(config('support.business_timezone'))->format('M j, Y H:i:s'))
-        ->assertSee($secondTime->tz(config('support.business_timezone'))->format('M j, Y H:i:s'));
+        ->assertSee($firstTime->tz(config('support.business_timezone'))->format('M j, Y h:i:s A'))
+        ->assertSee($secondTime->tz(config('support.business_timezone'))->format('M j, Y h:i:s A'));
 });

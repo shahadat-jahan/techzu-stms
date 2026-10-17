@@ -135,6 +135,22 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'sla' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/sla.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
+        'imports' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/imports.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

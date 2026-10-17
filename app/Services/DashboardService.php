@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
+use Illuminate\Contracts\Cache\TaggableStore;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,17 @@ class DashboardService
     public function getStats(User $user): array
     {
         $cacheKey = "dashboard:user:{$user->id}:{$user->role->value}";
+        $tags = ['dashboard', "dashboard:user:{$user->id}"];
+
+        if ($this->supportsTags()) {
+            return Cache::tags($tags)->remember($cacheKey, self::DASHBOARD_CACHE_SECONDS, function () use ($user) {
+                return [
+                    'summary' => $this->getSummaryCounts($user),
+                    'by_priority' => $this->getPriorityBreakdown($user),
+                    'by_agent' => $user->isCustomer() ? [] : $this->getAgentWorkload(),
+                ];
+            });
+        }
 
         return Cache::remember($cacheKey, self::DASHBOARD_CACHE_SECONDS, function () use ($user) {
             return [
@@ -26,6 +38,18 @@ class DashboardService
                 'by_agent' => $user->isCustomer() ? [] : $this->getAgentWorkload(),
             ];
         });
+    }
+
+    public function flush(): void
+    {
+        if ($this->supportsTags()) {
+            Cache::tags(['dashboard'])->flush();
+        }
+    }
+
+    private function supportsTags(): bool
+    {
+        return Cache::getStore() instanceof TaggableStore;
     }
 
     private function getSummaryCounts(User $user): array

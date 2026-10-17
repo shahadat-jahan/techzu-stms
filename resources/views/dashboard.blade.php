@@ -21,9 +21,9 @@
         </div>
     </x-slot>
 
-    <div class="py-10">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 pb-3">
                 <a href="{{ route('tickets.index') }}" class="group block p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-200 transition">
                     <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Open</span>
                     <div class="mt-2 flex items-baseline justify-between">
@@ -74,7 +74,7 @@
             </div>
 
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 class="text-base font-semibold text-gray-900 mb-4">Tickets by Priority</h3>
                     <div class="space-y-4">
@@ -112,7 +112,6 @@
                     <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-base font-semibold text-gray-900">Active Workload by Agent</h3>
-                            <span class="text-xs text-gray-500">Single SQL join query</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-100 text-xs">

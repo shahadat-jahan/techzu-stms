@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
+use App\Events\TicketAssigned;
+use App\Events\TicketCreated;
 use App\Models\Category;
 use App\Models\Import;
 use App\Models\ImportError;
@@ -13,6 +15,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class TicketImportService
 {
@@ -45,6 +48,7 @@ class TicketImportService
         $filePath = storage_path("app/{$import->path}");
 
         if (! file_exists($filePath)) {
+            Log::channel('imports')->error('CSV file not found', ['import_id' => $import->id, 'path' => $import->path]);
             throw new \Exception("CSV file not found: {$import->path}");
         }
 
@@ -200,13 +204,21 @@ class TicketImportService
                 }
             }
 
-            $imported = $this->insertTickets($valid, $customers, $categories, $agents, $errors);
+            $insertedTicketNumbers = $this->insertTickets($valid, $customers, $categories, $agents, $errors);
 
             $this->recordErrors($import, $errors);
 
             $import->increment('processed_rows', count($chunk));
-            $import->increment('imported_rows', $imported);
+            $import->increment('imported_rows', count($insertedTicketNumbers));
             $import->increment('failed_rows', count($errors));
+
+            // Dispatch creation/assignment events after the chunk commits so
+            // notifications only fire for tickets that were actually inserted.
+            if ($insertedTicketNumbers !== []) {
+                DB::afterCommit(function () use ($insertedTicketNumbers): void {
+                    $this->dispatchImportEvents($insertedTicketNumbers);
+                });
+            }
         });
     }
 
@@ -216,12 +228,12 @@ class TicketImportService
      *
      * @param  array<int,array{row:int,data:array,parsed:array}>  $valid
      * @param  array<int,array{0:int,1:array,2:string}>  $errors  appended to
-     * @return int number of tickets inserted
+     * @return array<int,string> ticket numbers that were successfully inserted
      */
-    private function insertTickets(array $valid, Collection $customers, Collection $categories, Collection $agents, array &$errors): int
+    private function insertTickets(array $valid, Collection $customers, Collection $categories, Collection $agents, array &$errors): array
     {
         if ($valid === []) {
-            return 0;
+            return [];
         }
 
         $now = now()->format('Y-m-d H:i:s');
@@ -239,23 +251,51 @@ class TicketImportService
             // Nested transaction = savepoint, so a failure cannot abort the chunk.
             DB::transaction(fn () => Ticket::insert(array_values($payload)));
 
-            return count($payload);
+            return array_column($payload, 'ticket_number');
         } catch (\Throwable) {
             // fall through: isolate the bad row(s)
         }
 
-        $imported = 0;
+        $inserted = [];
 
         foreach ($payload as $i => $row) {
             try {
                 DB::transaction(fn () => Ticket::insert([$row]));
-                $imported++;
+                $inserted[] = $row['ticket_number'];
             } catch (\Throwable $e) {
                 $errors[] = [$valid[$i]['row'], $valid[$i]['data'], $e->getMessage()];
             }
         }
 
-        return $imported;
+        return $inserted;
+    }
+
+    /**
+     * Dispatch TicketCreated and TicketAssigned events for imported tickets so
+     * customers and assigned agents receive notifications. Runs after the
+     * chunk's transaction commits via DB::afterCommit.
+     *
+     * @param  array<int,string>  $ticketNumbers
+     */
+    private function dispatchImportEvents(array $ticketNumbers): void
+    {
+        $tickets = Ticket::whereIn('ticket_number', $ticketNumbers)
+            ->with(['customer', 'agent'])
+            ->get()
+            ->keyBy('ticket_number');
+
+        foreach ($ticketNumbers as $ticketNumber) {
+            $ticket = $tickets[$ticketNumber] ?? null;
+            if ($ticket === null) {
+                continue;
+            }
+
+            TicketCreated::dispatch($ticket);
+
+            if ($ticket->assigned_to !== null && $ticket->agent !== null) {
+                TicketAssigned::dispatch($ticket, $ticket->agent);
+            }
+        }
     }
 
     private function usersByEmail(array $emails, ?string $role = null): Collection

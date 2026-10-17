@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\TicketAssignmentService;
 
 it('agents can accept unassigned tickets', function () {
     $agent = User::factory()->availableAgent()->create();
@@ -77,6 +78,27 @@ it('admins can trigger auto-assign unassigned', function () {
     $response->assertRedirect();
     $ticket->refresh();
     expect($ticket->assigned_to)->toBe($agent->id);
+});
+
+it('only one agent wins when two accept the same unassigned ticket concurrently', function () {
+    $agent1 = User::factory()->availableAgent()->create();
+    $agent2 = User::factory()->availableAgent()->create();
+    $ticket = Ticket::factory()->create(); // unassigned
+
+    // Both agents see the ticket as unassigned at the start.
+    // The atomic conditional update ensures only one wins.
+    $service = app(TicketAssignmentService::class);
+
+    $result1 = $service->accept($ticket, $agent1);
+    $result2 = $service->accept($ticket, $agent2);
+
+    expect($result1 + $result2)->toBe(1); // exactly one succeeds
+    $ticket->refresh();
+    expect($ticket->assigned_to)->not->toBeNull();
+    expect($ticket->status->value)->toBe('in_progress');
+
+    // The winner's activity row exists; only one assignment activity.
+    expect($ticket->activities()->where('action', 'assigned')->count())->toBe(1);
 });
 
 it('customers cannot accept tickets', function () {
