@@ -1,7 +1,12 @@
 <?php
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BusinessHourController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SlaPolicyController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketReplyController;
 use Illuminate\Support\Facades\Route;
@@ -10,9 +15,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -42,6 +47,23 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
 Route::middleware('auth')->prefix('attachments')->name('attachments.')->group(function () {
     Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
     Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
+});
+
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/sla-policies', [SlaPolicyController::class, 'index'])->name('sla-policies.index');
+    Route::patch('/sla-policies/{slaPolicy}', [SlaPolicyController::class, 'update'])->name('sla-policies.update');
+    Route::get('/business-hours', [BusinessHourController::class, 'index'])->name('business-hours.index');
+    Route::patch('/business-hours/{businessHour}', [BusinessHourController::class, 'update'])->name('business-hours.update');
+    Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
+    Route::post('/imports', [ImportController::class, 'store'])->name('imports.store');
+    Route::get('/imports/{import}', [ImportController::class, 'show'])->name('imports.show');
+    Route::get('/imports/{import}/progress', [ImportController::class, 'progress'])->name('imports.progress');
+    Route::get('/imports/{import}/failed-csv', [ImportController::class, 'failedCsv'])->name('imports.failed-csv');
+});
+
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::post('/{notification}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
 });
 
 require __DIR__.'/auth.php';

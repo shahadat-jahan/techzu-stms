@@ -8,6 +8,7 @@ use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\TicketReply;
 use App\Models\User;
+use Carbon\CarbonInterface;
 
 class ActivityLoggerService
 {
@@ -163,6 +164,27 @@ class ActivityLoggerService
             'action' => $action,
             'meta' => $meta,
         ]);
+    }
+
+    public function logSlaRecalculated(Ticket $ticket, ?CarbonInterface $oldDueAt, ?CarbonInterface $oldWarningAt, CarbonInterface $newDueAt, CarbonInterface $newWarningAt, User $actor): void
+    {
+        $meta = [
+            'old_due_at' => $oldDueAt?->toISOString(),
+            'old_warning_at' => $oldWarningAt?->toISOString(),
+            'new_due_at' => $newDueAt->toISOString(),
+            'new_warning_at' => $newWarningAt->toISOString(),
+        ];
+
+        $this->log(
+            'sla_recalculated',
+            $ticket,
+            $actor,
+            $meta,
+            sprintf('SLA deadline changed from %s to %s',
+                $oldDueAt?->toISOString() ?? 'null',
+                $newDueAt->toISOString()
+            ),
+        );
     }
 
     private function statusMeta(TicketStatus $oldStatus, TicketStatus $newStatus, ?string $note = null): array

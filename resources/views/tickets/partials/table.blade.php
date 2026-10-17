@@ -1,6 +1,23 @@
+@php
+    $hasActiveFilters = request()->hasAny([
+        'keyword', 'number', 'status', 'priority', 'category',
+        'assigned_to', 'customer_id', 'created_from', 'created_to', 'sla_status',
+    ]);
+@endphp
+
 @if ($tickets->isEmpty())
-    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6 text-sm text-gray-500">{{ $emptyMessage ?? 'No tickets found.' }}</div>
+    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-12 text-center">
+        <h3 class="mt-2 text-sm font-semibold text-gray-900">No tickets found</h3>
+        <p class="mt-1 text-sm text-gray-500">
+            {{ $hasActiveFilters ? 'No tickets match your filter criteria.' : ($emptyMessage ?? 'No tickets available.') }}
+        </p>
+        @if ($hasActiveFilters)
+            <div class="mt-6">
+                <a href="{{ url()->current() }}" class="inline-flex items-center rounded-md bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-100">
+                    Clear all filters
+                </a>
+            </div>
+        @endif
     </div>
 @else
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -30,12 +47,13 @@
                             <td class="max-w-xs truncate px-4 py-3 text-gray-900">{{ $ticket->subject }}</td>
                             <td class="whitespace-nowrap px-4 py-3"><x-priority-badge :priority="$ticket->priority" /></td>
                             <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$ticket->status" /></td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-500">
-                                {{ $ticket->due_at?->format('M j, Y H:i') ?? '—' }}
+                            <td class="whitespace-nowrap px-4 py-3">
+                                <x-timestamp :value="$ticket->due_at" class="block" />
+                                <x-sla-badge :status="$ticket->slaStatus()" class="mt-1" />
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->category?->name ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ $ticket->agent?->name ?? 'Unassigned' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-500">{{ $ticket->created_at->format('M j, Y H:i') }}</td>
+                            <td class="whitespace-nowrap px-4 py-3"><x-timestamp :value="$ticket->created_at" /></td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
                                 <a href="{{ route('tickets.show', $ticket) }}" class="font-medium text-indigo-600 hover:text-indigo-900">
                                     View

@@ -23,6 +23,20 @@
                     <x-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
                         {{ __('Resolved') }}
                     </x-nav-link>
+
+                    @can('manageSlaSettings')
+                        <x-nav-link :href="route('admin.sla-policies.index')" :active="request()->routeIs('admin.sla-policies.*')">
+                            {{ __('SLA Policies') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
+                            {{ __('Business Hours') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('admin.imports.index')" :active="request()->routeIs('admin.imports.*')">
+                            {{ __('Import Tickets') }}
+                        </x-nav-link>
+                    @endcan
                 </div>
             </div>
 
@@ -31,6 +45,11 @@
                 <div class="mr-4 text-sm text-gray-600">
                     <div class="font-medium">{{ Auth::user()->name }}</div>
                     <div class="text-xs text-gray-500">{{ Auth::user()->role->label() }}</div>
+                </div>
+
+                <!-- Notification Bell -->
+                <div class="mr-4">
+                    @include('notifications.partials.bell-dropdown')
                 </div>
 
                 <!-- Settings Dropdown -->
@@ -78,47 +97,61 @@
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-
-            <x-responsive-nav-link :href="route('tickets.index')" :active="request()->routeIs('tickets.*') && ! request()->routeIs('tickets.resolved')">
-                {{ __('Tickets') }}
-            </x-responsive-nav-link>
-
-            <x-responsive-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
-                {{ __('Resolved') }}
-            </x-responsive-nav-link>
-        </div>
-
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
-                <div class="font-medium text-xs text-gray-400">{{ Auth::user()->role->label() }}</div>
-            </div>
-
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
+        <!-- Responsive Navigation Menu -->
+        <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+            <div class="pt-2 pb-3 space-y-1">
+                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    {{ __('Dashboard') }}
                 </x-responsive-nav-link>
 
-                <!-- Authentication -->
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
+                <x-responsive-nav-link :href="route('tickets.index')" :active="request()->routeIs('tickets.*') && ! request()->routeIs('tickets.resolved')">
+                    {{ __('Tickets') }}
+                </x-responsive-nav-link>
 
-                    <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        {{ __('Log Out') }}
+                <x-responsive-nav-link :href="route('tickets.resolved')" :active="request()->routeIs('tickets.resolved')">
+                    {{ __('Resolved') }}
+                </x-responsive-nav-link>
+
+                @can('manageSlaSettings')
+                    <x-responsive-nav-link :href="route('admin.sla-policies.index')" :active="request()->routeIs('admin.sla-policies.*')">
+                        {{ __('SLA Policies') }}
                     </x-responsive-nav-link>
-                </form>
+
+                    <x-responsive-nav-link :href="route('admin.business-hours.index')" :active="request()->routeIs('admin.business-hours.*')">
+                        {{ __('Business Hours') }}
+                    </x-responsive-nav-link>
+
+                    <x-responsive-nav-link :href="route('admin.imports.index')" :active="request()->routeIs('admin.imports.*')">
+                        {{ __('Import Tickets') }}
+                    </x-responsive-nav-link>
+                @endcan
+            </div>
+
+            <!-- Responsive Settings Options -->
+            <div class="pt-4 pb-1 border-t border-gray-200">
+                <div class="px-4">
+                    <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
+                    <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                    <div class="font-medium text-xs text-gray-400">{{ Auth::user()->role->label() }}</div>
+                </div>
+
+                <div class="mt-3 space-y-1">
+                    <x-responsive-nav-link :href="route('profile.edit')">
+                        {{ __('Profile') }}
+                    </x-responsive-nav-link>
+
+                    <!-- Authentication -->
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+
+                        <x-responsive-nav-link :href="route('logout')"
+                                onclick="event.preventDefault();
+                                            this.closest('form').submit();">
+                            {{ __('Log Out') }}
+                        </x-responsive-nav-link>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

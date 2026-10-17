@@ -25,8 +25,8 @@ return new class extends Migration
             $table->timestamp('sla_warning_at')->nullable();
             $table->timestamp('resolved_at')->nullable();
             $table->timestamp('closed_at')->nullable();
-            $table->timestamp('escalated_approaching_at')->nullable();
-            $table->timestamp('escalated_breached_at')->nullable();
+            $table->timestamp('warning_notified_at')->nullable();
+            $table->timestamp('escalated_at')->nullable();
             $table->timestamp('last_assigned_at')->nullable();
             $table->string('external_ref')->nullable()->unique();
             $table->softDeletes();

@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\TicketActivity;
 use App\Models\TicketReply;
@@ -51,8 +50,6 @@ it('authorizes an available agent for its assigned and unassigned tickets', func
         ->and(Gate::forUser($agent)->allows('update', $theirs))->toBeFalse()
         ->and(Gate::forUser($agent)->allows('delete', $theirs))->toBeFalse();
 });
-
-
 
 it('authorizes a customer only on their own tickets', function () {
     $customer = User::factory()->create();
@@ -141,4 +138,3 @@ it('keeps internal notes out of a customer activity timeline', function () {
 
     expect($ticket->activities()->visibleTo($customer)->count())->toBe(1);
 });
-

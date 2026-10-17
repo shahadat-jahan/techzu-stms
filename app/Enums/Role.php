@@ -2,8 +2,6 @@
 
 namespace App\Enums;
 
-use BackedEnum;
-
 enum Role: string
 {
     case Admin = 'admin';

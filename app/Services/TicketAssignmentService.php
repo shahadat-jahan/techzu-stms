@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Enums\TicketStatus;
+use App\Events\TicketAssigned;
 use App\Models\Ticket;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TicketAssignmentService
@@ -31,6 +31,10 @@ class TicketAssignmentService
             }
 
             $this->activityLogger->logAssigned($ticket, $agent, $agent); // actor = agent accepting
+            DB::afterCommit(function () use ($ticket, $agent): void {
+                TicketAssigned::dispatch($ticket, $agent);
+            });
+
             return true;
         });
     }
@@ -50,6 +54,10 @@ class TicketAssignmentService
             } else {
                 $this->activityLogger->logAssigned($ticket, $targetAgent, $actor);
             }
+
+            DB::afterCommit(function () use ($ticket, $targetAgent): void {
+                TicketAssigned::dispatch($ticket, $targetAgent);
+            });
 
             return true;
         });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Role;
 use App\Enums\TicketStatus;
 use App\Http\Requests\AcceptTicketRequest;
 use App\Http\Requests\AssignTicketRequest;
@@ -31,12 +32,39 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->visibleTo($request->user())
             ->active()
-            ->with(['customer', 'agent', 'category'])
-            ->latest()
+            ->filter($request->user(), $request->all())
+            ->select([
+                'id',
+                'ticket_number',
+                'subject',
+                'priority',
+                'status',
+                'due_at',
+                'sla_warning_at',
+                'resolved_at',
+                'closed_at',
+                'category_id',
+                'assigned_to',
+                'created_by',
+                'created_at',
+            ])
+            ->with([
+                'customer:id,name,email',
+                'agent:id,name,email',
+                'category:id,name',
+            ])
             ->paginate(config('support.pagination.per_page'))
             ->withQueryString();
 
-        return view('tickets.index', compact('tickets'));
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $agents = $request->user()->isCustomer()
+            ? collect()
+            : User::where('role', Role::Agent->value)->orderBy('name')->get(['id', 'name']);
+        $customers = $request->user()->isAdmin()
+            ? User::where('role', Role::Customer->value)->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        return view('tickets.index', compact('tickets', 'categories', 'agents', 'customers'));
     }
 
     public function resolvedIndex(Request $request): View
@@ -44,12 +72,39 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->visibleTo($request->user())
             ->closedOrResolved()
-            ->with(['customer', 'agent', 'category'])
-            ->latest()
+            ->filter($request->user(), $request->all())
+            ->select([
+                'id',
+                'ticket_number',
+                'subject',
+                'priority',
+                'status',
+                'due_at',
+                'sla_warning_at',
+                'resolved_at',
+                'closed_at',
+                'category_id',
+                'assigned_to',
+                'created_by',
+                'created_at',
+            ])
+            ->with([
+                'customer:id,name,email',
+                'agent:id,name,email',
+                'category:id,name',
+            ])
             ->paginate(config('support.pagination.per_page'))
             ->withQueryString();
 
-        return view('tickets.resolved', compact('tickets'));
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $agents = $request->user()->isCustomer()
+            ? collect()
+            : User::where('role', Role::Agent->value)->orderBy('name')->get(['id', 'name']);
+        $customers = $request->user()->isAdmin()
+            ? User::where('role', Role::Customer->value)->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        return view('tickets.resolved', compact('tickets', 'categories', 'agents', 'customers'));
     }
 
     public function show(Request $request, Ticket $ticket): View
@@ -205,6 +260,7 @@ class TicketController extends Controller
         $this->authorize('assign', Ticket::class);
 
         $results = $this->assignmentService->autoAssignUnassigned($request->user());
+
         return back()->with('success', "Auto-assigned {$results['assigned']} tickets, skipped {$results['skipped']}.");
     }
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 
 class LeastLoadedAssignmentService
 {
@@ -36,7 +37,7 @@ class LeastLoadedAssignmentService
         ])->first();
     }
 
-    private function availableAgents(?int $categoryId): \Illuminate\Database\Eloquent\Collection
+    private function availableAgents(?int $categoryId): Collection
     {
         $query = User::where('role', 'agent')
             ->where('is_available', true)
