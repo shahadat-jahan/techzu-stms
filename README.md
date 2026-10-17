@@ -18,7 +18,7 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 
 - PHP 8.4+, Laravel 13
 - PostgreSQL (SQLite in-memory for tests)
-- Redis (optional; database cache/queue by default)
+- Redis
 - Tailwind CSS, Vite, Blade
 - Pest (testing), Laravel Pint (style)
 
@@ -28,7 +28,7 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 - Composer 2
 - Node.js 18+ / npm
 - PostgreSQL 14+ (or use Docker Compose)
-- (Optional) Redis
+- Redis
 
 ## Installation (fresh clone)
 
