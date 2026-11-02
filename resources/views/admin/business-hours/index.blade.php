@@ -67,7 +67,7 @@
             @endforeach
 
             <p class="text-xs text-gray-500">
-                Day numbers follow Carbon: 0 is Sunday through 6 is Saturday. Existing tickets keep the deadlines they were created with.
+                Existing tickets keep the deadlines they were created with.
             </p>
         </div>
     </div>
