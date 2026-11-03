@@ -8,7 +8,6 @@ use App\Models\Import;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -16,14 +15,14 @@ class ImportController extends Controller
 {
     public function index(): View
     {
-        Gate::authorize('manageImports');
+        $this->authorize('manageImports');
 
         return view('admin.imports.index');
     }
 
     public function store(StoreImportRequest $request): RedirectResponse
     {
-        Gate::authorize('manageImports');
+        $this->authorize('manageImports');
 
         $file = $request->file('file');
         $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
@@ -52,7 +51,7 @@ class ImportController extends Controller
 
     public function show(Import $import): View
     {
-        Gate::authorize('manageImports');
+        $this->authorize('manageImports');
 
         $import->load(['errors' => function ($query) {
             $query->orderBy('row_number', 'asc');
@@ -65,7 +64,7 @@ class ImportController extends Controller
 
     public function progress(Import $import): JsonResponse
     {
-        Gate::authorize('manageImports');
+        $this->authorize('manageImports');
 
         return response()->json([
             'processed' => $import->processed_rows,
@@ -78,7 +77,7 @@ class ImportController extends Controller
 
     public function failedCsv(Import $import): Response
     {
-        Gate::authorize('manageImports');
+        $this->authorize('manageImports');
 
         if ($import->failed_rows === 0) {
             abort(404, 'No failed rows to download.');

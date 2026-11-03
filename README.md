@@ -17,7 +17,7 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 
 ## Tech Stack
 
-- PHP 8.4+, Laravel 13
+- PHP 8.5+, Laravel 13
 - PostgreSQL (SQLite in-memory for tests)
 - **Redis (required)**
 - Tailwind CSS, Vite, Blade
@@ -25,7 +25,7 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 
 ## Requirements
 
-- PHP 8.4+
+- PHP 8.5+
 - Composer 2
 - Node.js 18+ / npm
 - PostgreSQL 14+ (or use Docker Compose)
@@ -36,7 +36,7 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 ### Installation (fresh clone)
 
 ```bash
-git clone <repo-url> techzu-stms
+git clone https://github.com/shahadat-jahan/techzu-stms.git
 cd techzu-stms
 
 composer install
