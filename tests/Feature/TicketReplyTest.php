@@ -137,3 +137,21 @@ it('shows only non-internal replies to a customer', function () {
         ->assertSee('Public reply')
         ->assertDontSee('Internal note');
 });
+
+it('updates a reply successfully', function () {
+    $agent = User::factory()->agent()->create();
+    $ticket = Ticket::factory()->create();
+    $reply = TicketReply::factory()->create(['ticket_id' => $ticket->id, 'user_id' => $agent->id, 'body' => 'Original body']);
+
+    $this->actingAs($agent)
+        ->patchJson(route('tickets.replies.update', [$ticket, $reply]), [
+            'body' => 'Updated body',
+            'is_internal' => false,
+        ])
+        ->assertOk()
+        ->assertJson(['success' => true, 'body' => 'Updated body']);
+
+    $reply->refresh();
+    expect($reply->body)->toBe('Updated body');
+    expect($ticket->activities()->where('action', 'reply_updated')->count())->toBe(1);
+});

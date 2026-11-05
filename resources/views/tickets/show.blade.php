@@ -3,7 +3,12 @@
     $user = Auth::user();
     $canManage = $user !== null && ($user->isAgent() || $user->isAdmin());
     $canAddInternalNote = $canManage;
+    $canUpdateReply = $user !== null && ($user->isAdmin() || $user->isAgent() || $user->isCustomer());
 @endphp
+
+@push('scripts')
+    @vite(['resources/js/inline-reply.js'])
+@endpush
 
 <x-app-layout>
     <x-slot name="header">
@@ -18,11 +23,12 @@
             <div class="flex items-center gap-3">
                 @can('update', $ticket)
                     <a href="{{ route('tickets.edit', $ticket) }}"
-                        class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                        class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer"
+                        aria-label="{{ __('Edit ticket') }}">
                         {{ __('Edit') }}
                     </a>
                 @endcan
-                <a href="{{ route('tickets.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900">
+                <a href="{{ route('tickets.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded px-2 py-1 transition-colors duration-150 cursor-pointer">
                     {{ __('Back to tickets') }}
                 </a>
             </div>
@@ -64,12 +70,67 @@
                                                 {{ __('Internal note') }}
                                             </span>
                                         @endif
-                                        <div class="text-gray-900">{{ $reply->body }}</div>
+                                        <div class="text-gray-900 reply-body-{{ $reply->id }}">{{ $reply->body }}</div>
+                                        @if ($user !== null && $user->can('update', $reply))
+                                            <div class="mt-2 flex items-center gap-2">
+                                                <button type="button"
+                                                        class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-900 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded px-2 py-1 transition-colors duration-150 inline-update-reply"
+                                                        aria-label="{{ __('Edit reply') }}"
+                                                        data-reply-id="{{ $reply->id }}"
+                                                        data-original-body="{{ $reply->body }}"
+                                                        data-is-internal="{{ $reply->is_internal }}">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                                    {{ __('Edit') }}
+                                                </button>
+                                            </div>
+                                        @endif
                                         <div class="mt-1 text-xs text-gray-400">
                                             {{ $reply->user->name ?? __('System') }} &middot;
-                                            {{ $reply->created_at->format('M j, Y H:i') }}
+                                            <time datetime="{{ $reply->created_at->toISOString() }}">{{ $reply->created_at->format('M j, Y H:i') }}</time>
                                         </div>
                                     </div>
+                                    @if ($user !== null && $user->can('update', $reply))
+                                        <div class="hidden reply-form-{{ $reply->id }}">
+                                            <form method="POST" action="{{ route('tickets.replies.update', [$ticket, $reply]) }}" class="flex flex-col gap-2 w-full max-w-md">
+                                                @method('PATCH')
+                                                @csrf
+                                                <div>
+                                                    <label for="inline-reply-body-{{ $reply->id }}"
+                                                        class="block text-xs font-medium text-gray-700 mb-1">{{ __('Edit your reply') }}</label>
+                                                    <textarea id="inline-reply-body-{{ $reply->id }}"
+                                                            name="body"
+                                                            rows="3"
+                                                            required
+                                                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-colors duration-150"
+                                                            data-reply-id="{{ $reply->id }}"
+                                                            data-original-body="{{ $reply->body }}"
+                                                            data-is-internal="{{ $reply->is_internal }}">{{ $reply->body }}</textarea>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    @if ($user !== null && ($user->isAdmin() || $user->id === $reply->user_id))
+                                                        <label class="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+                                                            <input type="checkbox" name="is_internal"
+                                                                class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                data-reply-id="{{ $reply->id }}"
+                                                                {{ $reply->is_internal ? 'checked' : '' }}>
+                                                            {{ __('Internal') }}
+                                                        </label>
+                                                    @endif
+                                                    <button type="submit"
+                                                            class="inline-flex items-center gap-1 text-xs font-medium bg-indigo-600 px-3 py-1.5 text-white rounded hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            aria-label="{{ __('Update reply') }}">
+                                                        {{ __('Update') }}
+                                                    </button>
+                                                    <button type="button"
+                                                            class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors duration-150"
+                                                            aria-label="{{ __('Cancel edit') }}"
+                                                            onclick="cancelInlineReply({{ $reply->id }})">
+                                                        {{ __('Cancel') }}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    @endif
                                 </div>
                             @empty
                                 <p class="text-sm text-gray-500">{{ __('No replies yet. Start the conversation below.') }}
@@ -102,7 +163,7 @@
                                     </label>
                                 @endif
                                 <button type="submit"
-                                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                                    class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
                                     {{ __('Post Reply') }}
                                 </button>
                             </form>
@@ -127,15 +188,17 @@
                                     </div>
                                     <div class="flex shrink-0 gap-2">
                                         <a href="{{ route('attachments.download', $attachment) }}"
-                                            class="text-xs font-medium text-indigo-600 hover:text-indigo-900">{{ __('Download') }}</a>
+                                            class="text-xs font-medium text-indigo-600 hover:text-indigo-900 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded px-1 py-0.5 transition-colors duration-150"
+                                            aria-label="{{ __('Download file') }}: {{ $attachment->original_name }}">{{ __('Download') }}</a>
                                         @if ($user !== null && $user->can('delete', $attachment))
                                             <form method="POST" action="{{ route('attachments.destroy', $attachment) }}"
                                                 class="flex gap-1">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
-                                                    class="text-xs font-medium text-red-600 hover:text-red-900"
-                                                    onclick="return confirm('{{ __('Remove this attachment?') }}')">{{ __('Remove') }}</button>
+                                                    class="text-xs font-medium text-red-600 hover:text-red-900 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 rounded px-1 py-0.5 transition-colors duration-150"
+                                                    onclick="return confirm('{{ __('Remove this attachment?') }}')"
+                                                    aria-label="{{ __('Remove attachment') }}: {{ $attachment->original_name }}">{{ __('Remove') }}</button>
                                             </form>
                                         @endif
                                     </div>
@@ -159,7 +222,7 @@
                                 {{ __('files at once') }}.
                             </p>
                             <button type="submit"
-                                class="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
+                                class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
                                 {{ __('Upload') }}
                             </button>
                         </form>
@@ -170,89 +233,95 @@
                             <div class="border-b border-gray-100 px-6 py-4">
                                 <h3 class="text-sm font-semibold text-gray-800">{{ __('Actions') }}</h3>
                             </div>
-                            <div class="flex flex-wrap items-center gap-3 p-6">
-                                @if ($ticket->assigned_to === null && $ticket->status->canTransitionTo($statusEnum::InProgress))
-                                    <form method="POST" action="{{ route('tickets.accept', $ticket) }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-                                            {{ __('Accept Ticket') }}
-                                        </button>
-                                    </form>
-                                @endif
+                            <div class="p-6 space-y-4">
+                                <!-- Primary ticket actions -->
+                                <div class="flex flex-wrap gap-2">
+                                    @if ($ticket->assigned_to === null && $ticket->status->canTransitionTo($statusEnum::InProgress))
+                                        <form method="POST" action="{{ route('tickets.accept', $ticket) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Accept Ticket') }}
+                                            </button>
+                                        </form>
+                                    @endif
 
+                                    @if ($ticket->status->canTransitionTo($statusEnum::InProgress) && $ticket->status !== $statusEnum::Resolved)
+                                        <form method="POST" action="{{ route('tickets.status', $ticket) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="status" value="in_progress">
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Start Progress') }}
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ($ticket->status->canTransitionTo($statusEnum::WaitingForCustomer))
+                                        <form method="POST" action="{{ route('tickets.status', $ticket) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="status" value="waiting_for_customer">
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Waiting for Customer') }}
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ($ticket->status->canTransitionTo($statusEnum::Resolved))
+                                        <form method="POST" action="{{ route('tickets.resolve', $ticket) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Resolve') }}
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ($ticket->status->canTransitionTo($statusEnum::Closed))
+                                        <form method="POST" action="{{ route('tickets.close', $ticket) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Close') }}
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ($ticket->status === $statusEnum::Resolved || $ticket->status === $statusEnum::Closed)
+                                        <form method="POST" action="{{ route('tickets.reopen', $ticket) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Reopen') }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                <!-- Assignment (admin only) -->
                                 @if ($user !== null && $user->isAdmin())
-                                    <form method="POST" action="{{ route('tickets.assign', $ticket) }}"
-                                        class="flex items-center gap-2">
-                                        @csrf
-                                        <select name="user_id"
-                                            class="rounded-md border border-gray-300 bg-white py-2 pl-3 pr-8 text-sm font-medium text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                            required>
-                                            <option value="">{{ __('Select agent...') }}</option>
-                                            @foreach ($availableAgents as $agent)
-                                                <option value="{{ $agent->id }}">{{ $agent->name }}
-                                                    ({{ $agent->active_tickets_count }}/{{ $agent->max_active_tickets }})</option>
-                                            @endforeach
-                                        </select>
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500">
-                                            {{ __('Assign') }}
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if ($ticket->status->canTransitionTo($statusEnum::InProgress) && $ticket->status !== $statusEnum::Resolved)
-                                    <form method="POST" action="{{ route('tickets.status', $ticket) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="status" value="in_progress">
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                                            {{ __('Start Progress') }}
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if ($ticket->status->canTransitionTo($statusEnum::WaitingForCustomer))
-                                    <form method="POST" action="{{ route('tickets.status', $ticket) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="status" value="waiting_for_customer">
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500">
-                                            {{ __('Waiting for Customer') }}
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if ($ticket->status->canTransitionTo($statusEnum::Resolved))
-                                    <form method="POST" action="{{ route('tickets.resolve', $ticket) }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
-                                            {{ __('Resolve') }}
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if ($ticket->status->canTransitionTo($statusEnum::Closed))
-                                    <form method="POST" action="{{ route('tickets.close', $ticket) }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
-                                            {{ __('Close') }}
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if ($ticket->status === $statusEnum::Resolved || $ticket->status === $statusEnum::Closed)
-                                    <form method="POST" action="{{ route('tickets.reopen', $ticket) }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-500">
-                                            {{ __('Reopen') }}
-                                        </button>
-                                    </form>
+                                    <div class="flex items-center gap-2">
+                                        <form method="POST" action="{{ route('tickets.assign', $ticket) }}"
+                                            class="flex items-center gap-2">
+                                            @csrf
+                                            <select name="user_id"
+                                                class="rounded-md border border-gray-300 bg-white py-2 pl-3 pr-8 text-sm font-medium text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                                required>
+                                                <option value="">{{ __('Select agent...') }}</option>
+                                                @foreach ($availableAgents as $agent)
+                                                    <option value="{{ $agent->id }}">{{ $agent->name }}
+                                                        ({{ $agent->active_tickets_count }}/{{ $agent->max_active_tickets }})</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 transition-colors duration-150 cursor-pointer">
+                                                {{ __('Assign') }}
+                                            </button>
+                                        </form>
+                                    </div>
                                 @endif
                             </div>
                         </div>

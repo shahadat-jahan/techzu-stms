@@ -107,6 +107,22 @@ class ActivityLoggerService
         );
     }
 
+    public function logReplyUpdated(Ticket $ticket, TicketReply $reply, User $actor): void
+    {
+        $label = $reply->is_internal ? 'Internal note' : 'Reply';
+
+        $this->log(
+            $reply->is_internal ? 'internal_note_updated' : 'reply_updated',
+            $ticket,
+            $actor,
+            [
+                'reply_id' => $reply->id,
+                'is_internal' => $reply->is_internal,
+            ],
+            sprintf('%s updated by %s', $label, $actor->name),
+        );
+    }
+
     public function logAttachmentAdded(Ticket $ticket, Attachment $attachment, User $actor): void
     {
         $this->log(

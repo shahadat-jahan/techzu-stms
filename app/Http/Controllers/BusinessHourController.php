@@ -8,13 +8,12 @@ use App\Services\BusinessHoursCalculatorService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Gate;
 
 class BusinessHourController extends Controller
 {
     public function index(): View
     {
-        Gate::authorize('manageSlaSettings');
+        $this->authorize('manageSlaSettings');
 
         $businessHours = BusinessHour::orderBy('day_of_week')->get();
 
