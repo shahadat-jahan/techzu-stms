@@ -197,6 +197,19 @@ class TicketService
         });
     }
 
+    public function updateReply(Ticket $ticket, TicketReply $reply, array $data, User $actor): TicketReply
+    {
+        return DB::transaction(function () use ($ticket, $reply, $data, $actor) {
+            $reply->body = $data['body'];
+            $reply->is_internal = (bool) ($data['is_internal'] ?? false);
+            $reply->save();
+
+            $this->activityLogger->logReplyUpdated($ticket, $reply, $actor);
+
+            return $reply;
+        });
+    }
+
     /**
      * @param  array<int, UploadedFile>  $files
      * @return Collection<int, Attachment>

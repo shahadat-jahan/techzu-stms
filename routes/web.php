@@ -38,6 +38,7 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
     Route::post('/{ticket}/close', [TicketController::class, 'close'])->name('close');
     Route::post('/{ticket}/reopen', [TicketController::class, 'reopen'])->name('reopen');
     Route::post('/{ticket}/replies', [TicketReplyController::class, 'store'])->middleware('throttle:30,1')->name('replies.store');
+    Route::patch('/{ticket}/replies/{reply}', [TicketReplyController::class, 'update'])->name('replies.update');
     Route::post('/{ticket}/attachments', [AttachmentController::class, 'store'])->middleware('throttle:30,1')->name('attachments.store');
     Route::post('/{ticket}/accept', [TicketController::class, 'accept'])->name('accept');
     Route::post('/{ticket}/assign', [TicketController::class, 'assign'])->name('assign');
