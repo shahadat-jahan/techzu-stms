@@ -7,9 +7,9 @@ use App\Jobs\ProcessTicketImportJob;
 use App\Models\Import;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ImportController extends Controller
 {
@@ -53,11 +53,7 @@ class ImportController extends Controller
     {
         $this->authorize('manageImports');
 
-        $import->load(['errors' => function ($query) {
-            $query->orderBy('row_number', 'asc');
-        }]);
-
-        $errors = $import->errors()->paginate(20);
+        $errors = $import->errors()->orderBy('row_number', 'asc')->paginate(20);
 
         return view('admin.imports.show', compact('import', 'errors'));
     }
@@ -75,7 +71,7 @@ class ImportController extends Controller
         ]);
     }
 
-    public function failedCsv(Import $import): Response
+    public function failedCsv(Import $import): StreamedResponse
     {
         $this->authorize('manageImports');
 
@@ -83,12 +79,59 @@ class ImportController extends Controller
             abort(404, 'No failed rows to download.');
         }
 
-        $csvContent = $this->generateFailedCsvContent($import);
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"failed_import_{$import->id}.csv\"",
+        ];
 
-        return response($csvContent, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=failed_import_{$import->id}.csv",
-        ]);
+        return response()->stream(function () use ($import) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($handle, [
+                'Row',
+                'External Ref',
+                'Subject',
+                'Description',
+                'Priority',
+                'Category',
+                'Customer Email',
+                'Assigned Agent Email',
+                'Created At',
+                'Error Message',
+            ]);
+
+            $import->errors()->orderBy('row_number', 'asc')->chunk(200, function ($errors) use ($handle) {
+                foreach ($errors as $error) {
+                    $raw = is_array($error->raw_data) ? $error->raw_data : (json_decode($error->raw_data, true) ?? []);
+
+                    $sanitize = function ($value): string {
+                        $str = (string) $value;
+                        if (in_array(substr($str, 0, 1), ['=', '+', '-', '@'], true)) {
+                            return "'".$str;
+                        }
+
+                        return $str;
+                    };
+
+                    fputcsv($handle, [
+                        $error->row_number,
+                        $sanitize($raw['external_ref'] ?? ''),
+                        $sanitize($raw['subject'] ?? ''),
+                        $sanitize($raw['description'] ?? ''),
+                        $raw['priority'] ?? '',
+                        $raw['category'] ?? '',
+                        $raw['customer_email'] ?? '',
+                        $raw['assigned_agent_email'] ?? '',
+                        $raw['created_at'] ?? '',
+                        $error->error_message,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, 200, $headers);
     }
 
     private function countCsvRows(string $filePath): int
@@ -106,27 +149,5 @@ class ImportController extends Controller
 
         // Subtract header row
         return max(0, $rowCount - 1);
-    }
-
-    private function generateFailedCsvContent(Import $import): string
-    {
-        $errors = $import->errors;
-
-        $csv = "Row,External Ref,Subject,Description,Priority,Category,Customer Email,Assigned Agent Email,Created At,Error Message\n";
-
-        foreach ($errors as $error) {
-            $rawData = is_array($error->raw_data) ? $error->raw_data : (json_decode($error->raw_data, true) ?? []);
-            $externalRef = $rawData['external_ref'] ?? '';
-            $subject = $rawData['subject'] ?? '';
-            $description = $rawData['description'] ?? '';
-            $priority = $rawData['priority'] ?? '';
-            $category = $rawData['category'] ?? '';
-            $customerEmail = $rawData['customer_email'] ?? '';
-            $assignedAgentEmail = $rawData['assigned_agent_email'] ?? '';
-            $createdAt = $rawData['created_at'] ?? '';
-            $csv .= "{$error->row_number},{$externalRef},{$subject},{$description},{$priority},{$category},{$customerEmail},{$assignedAgentEmail},{$createdAt},{$error->error_message}\n";
-        }
-
-        return $csv;
     }
 }
