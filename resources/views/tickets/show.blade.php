@@ -82,7 +82,40 @@
                                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                                     {{ __('Edit') }}
                                                 </button>
+                                                <button type="button"
+                                                        x-data=""
+                                                        x-on:click.prevent="$dispatch('open-modal', 'confirm-delete-reply-{{ $reply->id }}')"
+                                                        class="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-900 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 rounded px-2 py-1 transition-colors duration-150"
+                                                        aria-label="{{ __('Delete reply') }}">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                                    {{ __('Delete') }}
+                                                </button>
                                             </div>
+
+                                            <x-modal name="confirm-delete-reply-{{ $reply->id }}">
+                                                <form method="POST" action="{{ route('tickets.replies.destroy', [$ticket, $reply]) }}" class="p-4">
+                                                    @csrf
+                                                    @method('DELETE')
+
+                                                    <h2 class="text-lg font-medium text-gray-900">
+                                                        {{ __('Delete this reply?') }}
+                                                    </h2>
+
+                                                    <p class="mt-1 text-sm text-gray-600">
+                                                        {{ __('This will permanently remove the reply from the conversation.') }}
+                                                    </p>
+
+                                                    <div class="mt-6 flex justify-between">
+                                                        <x-secondary-button x-on:click="$dispatch('close')">
+                                                            {{ __('Cancel') }}
+                                                        </x-secondary-button>
+
+                                                        <x-danger-button class="ms-3">
+                                                            {{ __('Delete Reply') }}
+                                                        </x-danger-button>
+                                                    </div>
+                                                </form>
+                                            </x-modal>
                                         @endif
                                         <div class="mt-1 text-xs text-gray-400">
                                             {{ $reply->user->name ?? __('System') }} &middot;

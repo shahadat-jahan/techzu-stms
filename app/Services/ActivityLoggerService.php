@@ -123,6 +123,22 @@ class ActivityLoggerService
         );
     }
 
+    public function logReplyDeleted(Ticket $ticket, TicketReply $reply, User $actor): void
+    {
+        $label = $reply->is_internal ? 'Internal note' : 'Reply';
+
+        $this->log(
+            $reply->is_internal ? 'internal_note_deleted' : 'reply_deleted',
+            $ticket,
+            $actor,
+            [
+                'reply_id' => $reply->id,
+                'is_internal' => $reply->is_internal,
+            ],
+            sprintf('%s deleted by %s', $label, $actor->name),
+        );
+    }
+
     public function logAttachmentAdded(Ticket $ticket, Attachment $attachment, User $actor): void
     {
         $this->log(
