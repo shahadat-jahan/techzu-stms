@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
-use App\Events\TicketAssigned;
-use App\Events\TicketCreated;
 use App\Models\Category;
 use App\Models\Import;
 use App\Models\ImportError;
 use App\Models\Ticket;
+use App\Models\TicketActivity;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -33,10 +33,8 @@ class TicketImportService
         'created_at',
     ];
 
-    /** @var array<string,array{0:string,1:string}> priority value => [due_at, sla_warning_at] */
+    /** @var array<string,array{0:string,1:string}> sla cache key => [due_at, sla_warning_at] */
     private array $slaCache = [];
-
-    private ?CarbonInterface $slaStart = null;
 
     public function __construct(
         private readonly TicketNumberGeneratorService $numberGenerator,
@@ -71,7 +69,6 @@ class TicketImportService
                 $this->resetProgress($import);
 
                 $this->slaCache = [];
-                $this->slaStart = now();
 
                 // Categories are a tiny table: load once per import, not per chunk.
                 $categories = Category::all()
@@ -204,21 +201,15 @@ class TicketImportService
                 }
             }
 
-            $insertedTicketNumbers = $this->insertTickets($valid, $customers, $categories, $agents, $errors);
+            $inserted = $this->insertTickets($valid, $customers, $categories, $agents, $errors);
 
             $this->recordErrors($import, $errors);
 
             $import->increment('processed_rows', count($chunk));
-            $import->increment('imported_rows', count($insertedTicketNumbers));
+            $import->increment('imported_rows', count($inserted));
             $import->increment('failed_rows', count($errors));
 
-            // Dispatch creation/assignment events after the chunk commits so
-            // notifications only fire for tickets that were actually inserted.
-            if ($insertedTicketNumbers !== []) {
-                DB::afterCommit(function () use ($insertedTicketNumbers): void {
-                    $this->dispatchImportEvents($insertedTicketNumbers);
-                });
-            }
+            $this->logImported($inserted, $import);
         });
     }
 
@@ -228,7 +219,7 @@ class TicketImportService
      *
      * @param  array<int,array{row:int,data:array,parsed:array}>  $valid
      * @param  array<int,array{0:int,1:array,2:string}>  $errors  appended to
-     * @return array<int,string> ticket numbers that were successfully inserted
+     * @return array<int,array{row:int,ticket_number:string,data:array}> successfully inserted tickets
      */
     private function insertTickets(array $valid, Collection $customers, Collection $categories, Collection $agents, array &$errors): array
     {
@@ -238,64 +229,82 @@ class TicketImportService
 
         $now = now()->format('Y-m-d H:i:s');
 
-        // One lock + one update for the whole chunk (kept as late as possible:
-        // the sequence row stays locked until this chunk's transaction commits).
-        $numbers = $this->numberGenerator->reserve(now()->year, count($valid));
-
-        $payload = [];
-        foreach ($valid as $i => $item) {
-            $payload[$i] = $this->ticketRow($item['data'], $item['parsed'], $numbers[$i], $now, $customers, $categories, $agents);
-        }
-
-        try {
-            // Nested transaction = savepoint, so a failure cannot abort the chunk.
-            DB::transaction(fn () => Ticket::insert(array_values($payload)));
-
-            return array_column($payload, 'ticket_number');
-        } catch (\Throwable) {
-            // fall through: isolate the bad row(s)
+        $byYear = [];
+        foreach ($valid as $item) {
+            $year = $this->yearOf($item);
+            $byYear[$year][] = $item;
         }
 
         $inserted = [];
 
-        foreach ($payload as $i => $row) {
+        foreach ($byYear as $year => $items) {
+            // One lock + one update for the whole year group (kept as late as possible:
+            // the sequence row stays locked until this chunk's transaction commits).
+            $numbers = $this->numberGenerator->reserve($year, count($items));
+
+            $payload = [];
+            foreach ($items as $i => $item) {
+                $payload[] = $this->ticketRow($item['data'], $item['parsed'], $numbers[$i], $now, $customers, $categories, $agents);
+            }
+
             try {
-                DB::transaction(fn () => Ticket::insert([$row]));
-                $inserted[] = $row['ticket_number'];
-            } catch (\Throwable $e) {
-                $errors[] = [$valid[$i]['row'], $valid[$i]['data'], $e->getMessage()];
+                // Nested transaction = savepoint, so a failure cannot abort the chunk.
+                DB::transaction(fn () => Ticket::insert(array_values($payload)));
+
+                foreach ($payload as $i => $row) {
+                    $inserted[] = ['row' => $items[$i]['row'], 'ticket_number' => $row['ticket_number'], 'data' => $items[$i]['data']];
+                }
+
+                continue;
+            } catch (\Throwable) {
+                // fall through: isolate the bad row(s)
+            }
+
+            foreach ($payload as $i => $row) {
+                try {
+                    DB::transaction(fn () => Ticket::insert([$row]));
+                    $inserted[] = ['row' => $items[$i]['row'], 'ticket_number' => $row['ticket_number'], 'data' => $items[$i]['data']];
+                } catch (\Throwable $e) {
+                    $errors[] = [$items[$i]['row'], $items[$i]['data'], $e->getMessage()];
+                }
             }
         }
 
         return $inserted;
     }
 
-    /**
-     * Dispatch TicketCreated and TicketAssigned events for imported tickets so
-     * customers and assigned agents receive notifications. Runs after the
-     * chunk's transaction commits via DB::afterCommit.
-     *
-     * @param  array<int,string>  $ticketNumbers
-     */
-    private function dispatchImportEvents(array $ticketNumbers): void
+    private function yearOf(array $item): int
     {
-        $tickets = Ticket::whereIn('ticket_number', $ticketNumbers)
-            ->with(['customer', 'agent'])
-            ->get()
-            ->keyBy('ticket_number');
+        $createdAt = $item['parsed']['created_at'] !== null ? Carbon::parse($item['parsed']['created_at']) : Carbon::parse(now());
 
-        foreach ($ticketNumbers as $ticketNumber) {
-            $ticket = $tickets[$ticketNumber] ?? null;
-            if ($ticket === null) {
-                continue;
-            }
+        return (int) $createdAt->format('Y');
+    }
 
-            TicketCreated::dispatch($ticket);
-
-            if ($ticket->assigned_to !== null && $ticket->agent !== null) {
-                TicketAssigned::dispatch($ticket, $ticket->agent);
-            }
+    /**
+     * @param  array<int,array{row:int,ticket_number:string,data:array}>  $inserted
+     */
+    private function logImported(array $inserted, Import $import): void
+    {
+        if ($inserted === []) {
+            return;
         }
+
+        $now = now();
+        $ticketIds = Ticket::whereIn('ticket_number', array_column($inserted, 'ticket_number'))->pluck('id', 'ticket_number');
+
+        TicketActivity::insert(array_map(fn (array $insertedTicket) => [
+            'ticket_id' => $ticketIds[$insertedTicket['ticket_number']],
+            'actor_id' => $import->user_id,
+            'action' => 'imported',
+            'meta' => json_encode([
+                'import_id' => $import->id,
+                'row_number' => $insertedTicket['row'],
+                'subject' => $insertedTicket['data']['subject'],
+                'priority' => $insertedTicket['data']['priority'],
+            ], JSON_UNESCAPED_UNICODE),
+            'created_at' => $now->format('Y-m-d H:i:s'),
+            'updated_at' => $now->format('Y-m-d H:i:s'),
+        ], $inserted));
     }
 
     private function usersByEmail(array $emails, ?string $role = null): Collection
@@ -421,7 +430,16 @@ class TicketImportService
     private function ticketRow(array $d, array $parsed, string $ticketNumber, string $now, Collection $customers, Collection $categories, Collection $agents): array
     {
         $agentEmail = mb_strtolower($d['assigned_agent_email']);
-        [$dueAt, $warningAt] = $this->slaFor($parsed['priority']);
+        $rowCreatedAt = $parsed['created_at'] !== null ? Carbon::parse($parsed['created_at']) : Carbon::parse($now);
+        [$dueAt, $warningAt] = $this->slaFor($parsed['priority'], $rowCreatedAt);
+
+        $resolvedAt = null;
+        $closedAt = null;
+        if ($parsed['status'] === TicketStatus::Resolved) {
+            $resolvedAt = $rowCreatedAt->format('Y-m-d H:i:s');
+        } elseif ($parsed['status'] === TicketStatus::Closed) {
+            $closedAt = $rowCreatedAt->format('Y-m-d H:i:s');
+        }
 
         return [
             'ticket_number' => $ticketNumber,
@@ -437,22 +455,24 @@ class TicketImportService
             'external_ref' => $d['external_ref'],
             'created_at' => $parsed['created_at'] ?? $now,
             'updated_at' => $now,
+            'resolved_at' => $resolvedAt,
+            'closed_at' => $closedAt,
         ];
     }
 
     /**
-     * SLA depends only on the priority, so compute it once per priority per
-     * import (measured from the import start) instead of twice per row.
+     * SLA depends only on the priority and the ticket's own creation time, so
+     * compute it once per priority per start time instead of twice per row.
      *
      * @return array{0:string,1:string} [due_at, sla_warning_at]
      */
-    private function slaFor(Priority $priority): array
+    private function slaFor(Priority $priority, CarbonInterface $startTime): array
     {
-        $this->slaStart ??= now();
+        $key = $priority->value.'_'.$startTime->format('Y-m-d H:i:s');
 
-        return $this->slaCache[$priority->value] ??= [
-            $this->slaService->calculateDue($priority, $this->slaStart)->format('Y-m-d H:i:s'),
-            $this->slaService->calculateWarning($priority, $this->slaStart)->format('Y-m-d H:i:s'),
+        return $this->slaCache[$key] ??= [
+            $this->slaService->calculateDue($priority, $startTime)->format('Y-m-d H:i:s'),
+            $this->slaService->calculateWarning($priority, $startTime)->format('Y-m-d H:i:s'),
         ];
     }
 

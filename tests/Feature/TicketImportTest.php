@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Priority;
+use App\Events\TicketCreated;
 use App\Models\Category;
 use App\Models\Import;
 use App\Models\ImportError;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Services\TicketImportService;
 use App\Services\TicketNumberGeneratorService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
@@ -199,12 +201,12 @@ it('re-uploading the same file imports 0 new rows (idempotent)', function () {
     expect(Ticket::where('external_ref', 'EXT-001')->count())->toBe(1);
 });
 
-it('calculates due_at from import start time, not CSV created_at', function () {
+it('import calculates SLA from row created_at not import time', function () {
     $csv = makeCsv([
-        ['EXT-001', 'Ticket with past date', 'Description', 'critical', 'Billing', 'open', 'customer@example.com', null, '2020-01-01 00:00:00'],
+        ['HIST-2', 'Old ticket', 'Old desc', 'critical', 'Billing', 'open', 'customer@example.com', null, '2025-06-15 10:00:00'],
     ]);
 
-    $path = 'imports/test-sla.csv';
+    $path = 'imports/test-sla-row.csv';
     writeCsv($path, $csv);
 
     $import = Import::factory()->create([
@@ -215,13 +217,38 @@ it('calculates due_at from import start time, not CSV created_at', function () {
 
     $this->service->process($import);
 
-    $ticket = Ticket::where('external_ref', 'EXT-001')->first();
+    $ticket = Ticket::where('external_ref', 'HIST-2')->first();
     expect($ticket)->not->toBeNull();
-    // created_at should come from CSV (2020-01-01)
-    expect($ticket->created_at->format('Y-m-d'))->toBe('2020-01-01');
-    // due_at should be calculated from import start time (now), not CSV created_at
-    expect($ticket->due_at)->not->toBeNull();
-    expect($ticket->due_at->year)->toBe(now()->year);
+    // created_at should come from CSV
+    expect($ticket->created_at->format('Y-m-d H:i:s'))->toBe('2025-06-15 10:00:00');
+    // due_at should be calculated from the row's created_at, not the import time
+    expect($ticket->due_at->year)->toBe(2025);
+});
+
+it('import sets resolved_at for resolved rows and suppresses customer notifications', function () {
+    Event::fake([TicketCreated::class]);
+
+    $csv = makeCsv([
+        ['HIST-1', 'Old ticket', 'Old desc', 'medium', 'Billing', 'resolved', 'customer@example.com', null, '2025-01-10 10:00:00'],
+    ]);
+
+    $path = 'imports/test-resolved.csv';
+    writeCsv($path, $csv);
+
+    $import = Import::factory()->create([
+        'path' => $path,
+        'user_id' => $this->admin->id,
+        'total_rows' => countCsvDataRows($csv),
+    ]);
+
+    $this->service->process($import);
+
+    Event::assertNotDispatched(TicketCreated::class);
+
+    $ticket = Ticket::where('external_ref', 'HIST-1')->first();
+    expect($ticket)->not->toBeNull();
+    expect($ticket->resolved_at)->not->toBeNull();
+    expect($ticket->ticket_number)->toStartWith('TKT-2025-');
 });
 
 it('reserves consecutive ticket numbers without gaps', function () {
