@@ -7,6 +7,7 @@ use App\Enums\TicketStatus;
 use App\Http\Requests\AcceptTicketRequest;
 use App\Http\Requests\AssignTicketRequest;
 use App\Http\Requests\ChangeStatusRequest;
+use App\Http\Requests\FilterTicketsRequest;
 use App\Http\Requests\StoreTicketRequest;
 use App\Http\Requests\UpdateTicketRequest;
 use App\Models\Category;
@@ -31,20 +32,20 @@ class TicketController extends Controller
         private readonly DashboardService $dashboardService,
     ) {}
 
-    public function index(Request $request): View
+    public function index(FilterTicketsRequest $request): View
     {
         $tickets = $this->ticketQuery($request, 'active')
-            ->filter($request->user(), $request->all())
+            ->filter($request->user(), $request->validated())
             ->paginate($this->getPerPage($request))
             ->withQueryString();
 
         return view('tickets.index', $this->listData($request, $tickets));
     }
 
-    public function resolvedIndex(Request $request): View
+    public function resolvedIndex(FilterTicketsRequest $request): View
     {
         $tickets = $this->ticketQuery($request, 'closedOrResolved')
-            ->filter($request->user(), $request->all())
+            ->filter($request->user(), $request->validated())
             ->paginate($this->getPerPage($request))
             ->withQueryString();
 

@@ -149,6 +149,19 @@ it('does not crash on both invalid date filters', function () {
         ->assertSee('Valid Ticket');
 });
 
+it('handles malformed filter parameters gracefully', function () {
+    $admin = User::factory()->admin()->create();
+
+    $response = $this->actingAs($admin)->get(route('tickets.index', [
+        'category' => 'abc',
+        'keyword' => 'postgresql',
+        'created_from' => 'not-a-date',
+        'sort_dir' => 'desc',
+    ]));
+
+    $response->assertOk();
+});
+
 it('filters tickets by SLA status: breached, approaching, within', function () {
     $admin = User::factory()->admin()->create();
     $breached = Ticket::factory()->create([
