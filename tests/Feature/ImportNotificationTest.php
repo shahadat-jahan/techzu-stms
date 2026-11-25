@@ -11,7 +11,7 @@ use App\Services\TicketImportService;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\File;
 
-it('sends ticket created and assigned notifications after CSV import', function () {
+it('does not send notifications after CSV import', function () {
     $customer = User::factory()->create([
         'role' => Role::Customer,
         'email' => 'customer@example.com',
@@ -49,6 +49,6 @@ it('sends ticket created and assigned notifications after CSV import', function 
     // Tickets should be imported
     expect(Ticket::count())->toBe(1);
 
-    // Database notifications should have been created for customer and agent
-    expect(DatabaseNotification::count())->toBeGreaterThan(0);
+    // Imports must not fire notifications
+    expect(DatabaseNotification::count())->toBe(0);
 });
