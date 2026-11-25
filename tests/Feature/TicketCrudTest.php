@@ -128,7 +128,7 @@ it('ignores priority when a customer updates a ticket', function () {
 
 it('resolves, closes, and reopens a ticket through the endpoints', function () {
     $agent = User::factory()->agent()->create();
-    $ticket = Ticket::factory()->create();
+    $ticket = Ticket::factory()->create(['assigned_to' => $agent->id]);
 
     $this->actingAs($agent)->post(route('tickets.resolve', $ticket))
         ->assertRedirect(route('tickets.show', $ticket));
@@ -156,7 +156,10 @@ it('resolves, closes, and reopens a ticket through the endpoints', function () {
 
 it('rejects an invalid status transition without writing an activity', function () {
     $agent = User::factory()->agent()->create();
-    $ticket = Ticket::factory()->closed()->create();
+    $ticket = Ticket::factory()->create([
+        'status' => TicketStatus::Closed,
+        'assigned_to' => $agent->id,
+    ]);
 
     $this->actingAs($agent)
         ->patch(route('tickets.status', $ticket), ['status' => TicketStatus::InProgress->value])
