@@ -10,5 +10,5 @@ Artisan::command('inspire', function () {
 
 Schedule::command('sla:check')
     ->everyMinute()
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->runInBackground();
