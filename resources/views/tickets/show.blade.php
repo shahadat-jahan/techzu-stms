@@ -211,11 +211,11 @@
                         <div class="p-6 space-y-3">
                             @forelse ($attachments as $attachment)
                                 <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-4 py-3">
-                                    <div>
-                                        <div class="text-sm font-medium text-gray-900">{{ $attachment->original_name }}
+                                    <div class="min-w-0 flex-1">
+                                        <div class="text-sm font-medium text-gray-900 truncate">{{ $attachment->original_name }}
                                         </div>
                                         <div class="text-xs text-gray-400">
-                                            {{ $attachment->size }} bytes &middot;
+                                            {{ $attachment->size_formatted }} &middot;
                                             {{ $attachment->created_at->format('M j, Y H:i') }}
                                         </div>
                                     </div>

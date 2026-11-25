@@ -28,7 +28,7 @@ class StoreAttachmentRequest extends FormRequest
             'files' => ['required', 'array', 'max:'.config('support.uploads.max_files')],
             'files.*' => [
                 'file',
-                'max:'.config('support.uploads.max_size'),
+                'max:'.config('support.uploads.max_size') * 1024,
                 'mimes:'.implode(',', config('support.uploads.allowed_mimes')),
             ],
         ];
