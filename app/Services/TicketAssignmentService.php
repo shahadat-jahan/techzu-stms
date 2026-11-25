@@ -70,22 +70,50 @@ class TicketAssignmentService
 
     public function autoAssignUnassigned(User $actor): array
     {
-        $unassignedTickets = Ticket::unassigned()->active()->get();
         $assigned = 0;
         $skipped = 0;
 
-        foreach ($unassignedTickets as $ticket) {
-            $agent = $this->leastLoadedAssignmentService->assignTicket($ticket);
-            if ($agent) {
-                $ticket->assigned_to = $agent->id;
-                $ticket->last_assigned_at = now();
-                $ticket->save();
-                $this->activityLogger->logAssigned($ticket, $agent, $actor);
-                $assigned++;
-            } else {
-                $skipped++;
-            }
-        }
+        // Process active unassigned tickets in chunks to avoid memory spikes
+        Ticket::unassigned()
+            ->active()
+            ->chunkById(100, function ($tickets) use ($actor, &$assigned, &$skipped) {
+                foreach ($tickets as $ticket) {
+                    $agent = $this->leastLoadedAssignmentService->assignTicket($ticket);
+
+                    if (! $agent) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    $affected = DB::transaction(function () use ($ticket, $agent, $actor) {
+                        $rows = Ticket::whereKey($ticket->id)
+                            ->whereNull('assigned_to')
+                            ->update([
+                                'assigned_to' => $agent->id,
+                                'last_assigned_at' => now(),
+                            ]);
+
+                        if ($rows === 0) {
+                            return 0;
+                        }
+
+                        $this->activityLogger->logAssigned($ticket, $agent, $actor);
+
+                        DB::afterCommit(function () use ($ticket, $agent): void {
+                            TicketAssigned::dispatch($ticket->fresh(), $agent);
+                        });
+
+                        return 1;
+                    });
+
+                    if ($affected === 1) {
+                        $assigned++;
+                    } else {
+                        $skipped++;
+                    }
+                }
+            });
 
         return ['assigned' => $assigned, 'skipped' => $skipped];
     }

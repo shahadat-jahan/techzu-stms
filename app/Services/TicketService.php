@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Priority;
 use App\Enums\TicketStatus;
 use App\Events\AgentReplied;
+use App\Events\TicketAssigned;
 use App\Events\TicketClosed;
 use App\Events\TicketCreated;
 use App\Events\TicketCustomerReplied;
@@ -61,10 +62,22 @@ class TicketService
             if ($ticket->assigned_to === null) {
                 $assignedAgent = $this->assignmentService->assignTicket($ticket);
                 if ($assignedAgent) {
-                    $ticket->assigned_to = $assignedAgent->id;
-                    $ticket->last_assigned_at = now();
-                    $ticket->save();
-                    $this->activityLogger->logAssigned($ticket, $assignedAgent, $creator);
+                    $rows = Ticket::whereKey($ticket->id)
+                        ->whereNull('assigned_to')
+                        ->update([
+                            'assigned_to' => $assignedAgent->id,
+                            'last_assigned_at' => now(),
+                        ]);
+
+                    if ($rows === 1) {
+                        $ticket->assigned_to = $assignedAgent->id;
+                        $ticket->last_assigned_at = now();
+                        $this->activityLogger->logAssigned($ticket, $assignedAgent, $creator);
+
+                        DB::afterCommit(function () use ($ticket, $assignedAgent): void {
+                            TicketAssigned::dispatch($ticket->fresh(), $assignedAgent);
+                        });
+                    }
                 }
             }
 

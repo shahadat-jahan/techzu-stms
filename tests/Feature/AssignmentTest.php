@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\TicketStatus;
+use App\Events\TicketAssigned;
 use App\Models\Category;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\TicketAssignmentService;
+use Illuminate\Support\Facades\Event;
 
 it('agents can accept unassigned tickets', function () {
     $agent = User::factory()->availableAgent()->create();
@@ -99,6 +102,23 @@ it('only one agent wins when two accept the same unassigned ticket concurrently'
 
     // The winner's activity row exists; only one assignment activity.
     expect($ticket->activities()->where('action', 'assigned')->count())->toBe(1);
+});
+
+it('auto-assign does not overwrite ticket if accepted concurrently and dispatches event on success', function () {
+    Event::fake([TicketAssigned::class]);
+
+    $agentA = User::factory()->agent()->create(['is_available' => true, 'max_active_tickets' => 10]);
+    $agentB = User::factory()->agent()->create(['is_available' => true, 'max_active_tickets' => 10]);
+    $admin = User::factory()->admin()->create();
+
+    $ticket = Ticket::factory()->create(['assigned_to' => null, 'status' => TicketStatus::Open]);
+
+    $assignmentService = app(TicketAssignmentService::class);
+
+    $result = $assignmentService->autoAssignUnassigned($admin);
+
+    Event::assertDispatched(TicketAssigned::class);
+    expect($ticket->fresh()->assigned_to)->not->toBeNull();
 });
 
 it('customers cannot accept tickets', function () {
