@@ -25,7 +25,7 @@ class ImportController extends Controller
         $this->authorize('manageImports');
 
         $file = $request->file('file');
-        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $filename = Str::uuid().'.csv';
         // The default "local" disk is rooted at storage/app/private, so store
         // under "imports" and keep the path relative to storage/app.
         $path = 'private/'.$file->storeAs('imports', $filename);

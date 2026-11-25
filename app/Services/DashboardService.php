@@ -18,7 +18,8 @@ class DashboardService
 
     public function getStats(User $user): array
     {
-        $cacheKey = "dashboard:user:{$user->id}:{$user->role->value}";
+        $version = (int) Cache::get('dashboard:version', 1);
+        $cacheKey = "dashboard:user:{$user->id}:{$user->role->value}:v{$version}";
         $tags = ['dashboard', "dashboard:user:{$user->id}"];
 
         if ($this->supportsTags()) {
@@ -44,6 +45,8 @@ class DashboardService
     {
         if ($this->supportsTags()) {
             Cache::tags(['dashboard'])->flush();
+        } else {
+            Cache::increment('dashboard:version');
         }
     }
 

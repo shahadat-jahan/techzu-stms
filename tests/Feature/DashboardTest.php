@@ -4,6 +4,7 @@ use App\Enums\Priority;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DashboardService;
 
 it('redirects guests to login when accessing dashboard', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));
@@ -36,6 +37,13 @@ it('returns JSON stats for polling when requested', function () {
             'by_priority',
             'by_agent',
         ]);
+});
+
+it('dashboard flush functions without throwing exceptions on non-taggable cache stores', function () {
+    config(['cache.default' => 'file']);
+    $service = app(DashboardService::class);
+    $service->flush();
+    expect(true)->toBeTrue();
 });
 
 it('renders dashboard cards linking to pre-filtered ticket listings', function () {
