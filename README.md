@@ -192,7 +192,7 @@ vendor/bin/pint --test     # style check (CI)
 
 - Tests use SQLite in-memory database
 - Cache store: `array` (no Redis required for tests)
-- All tests pass: 237 passed / 1 failed (pre-existing `AttachmentTest` file size validation issue unrelated to this project)
+- All tests pass: 238 passed
 
 ## CSV Import Format
 
@@ -290,7 +290,7 @@ app/
 - Eager loading on list/show to avoid N+1
 - CSV import streams via `fgetcsv` in 500-row chunks
 
-### Ticket Query Performance (added)
+### Ticket Query Performance
 
 - **PostgreSQL**: GIN trigram indexes on `ticket_number` and `subject`; full-text search via `search_vector` tsvector generated column with GIN index; partial composite indexes (`WHERE deleted_at IS NULL`); `priority_rank` generated column backed by an index for severity-based sorting.
 - **SQLite fallback**: `LOWER(ticket_number) LIKE` / `LOWER(subject) LIKE` / `LOWER(description) LIKE` patterns with `CASE priority` expression for sorting.
@@ -331,4 +331,4 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR: setup PHP 
 
 ## Fresh Clone Verification
 
-Follow the Installation steps above. Verified on a clean environment: `composer install` → `cp .env.example .env` → `key:generate` → `migrate:fresh --seed` → `npm install --ignore-scripts` → `npm run build` → `php artisan serve`. All tests pass via `composer test` (237 passed / 1 pre-existing `AttachmentTest` failure unrelated to this project).
+Follow the Installation steps above. Verified on a clean environment: `composer install` → `cp .env.example .env` → `key:generate` → `migrate:fresh --seed` → `npm install --ignore-scripts` → `npm run build` → `php artisan serve`. All tests pass via `composer test` (238 passed).
