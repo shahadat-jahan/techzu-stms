@@ -31,7 +31,12 @@
                                                 </button>
                                             </form>
                                         @endunless
-                                        <a href="{{ $notification->data['action_url'] ?? '#' }}" data-view-ticket class="text-sm text-blue-600 hover:text-blue-800">
+                                        <a href="{{ $notification->data['action_url'] ?? '#' }}"
+                                            data-view-ticket
+                                            data-notification-id="{{ $notification->id }}"
+                                            data-action-url="{{ $notification->data['action_url'] ?? '#' }}"
+                                            data-mark-as-read-and-navigate
+                                            class="text-sm text-blue-600 hover:text-blue-800">
                                             View Ticket
                                         </a>
                                     </div>

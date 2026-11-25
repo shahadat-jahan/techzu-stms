@@ -81,7 +81,7 @@ class BusinessHoursCalculatorService
 
         // openingOfNextBusinessDay() scans forward until it finds an open weekday,
         // so a configuration with no open weekday would make that scan never end.
-        if (array_filter($hours, fn (array $day): bool => $day['is_open']) === []) {
+        if (array_filter($hours, fn ($day): bool => is_array($day) && $day['is_open']) === []) {
             throw new RuntimeException('No business days are configured as open.');
         }
 

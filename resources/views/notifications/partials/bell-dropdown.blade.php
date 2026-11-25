@@ -22,16 +22,28 @@
                 <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
             </div>
 
-            @if (auth()->user()->notifications()->count() > 0)
+            @php
+                $authUser = auth()->user();
+                $notifications = $authUser->notifications()->latest()->take(5)->get();
+            @endphp
+
+            @if ($notifications->count() > 0)
                 <div class="max-h-64 overflow-y-auto">
-                    @foreach (auth()->user()->notifications()->latest()->take(5) as $notification)
+                    @foreach ($notifications as $notification)
                         <div class="block px-4 py-3 hover:bg-gray-50 {{ $notification->read_at ? 'bg-white' : 'bg-blue-50' }}" data-notification-id="{{ $notification->id }}">
                             <div class="flex items-start justify-between">
-                                <a href="{{ route('notifications.index') }}" class="flex-1">
+                                <a href="{{ $notification->data['action_url'] ?? route('notifications.index') }}"
+                                    class="flex-1"
+                                    data-notification-id="{{ $notification->id }}"
+                                    data-action-url="{{ $notification->data['action_url'] ?? route('notifications.index') }}"
+                                    data-mark-as-read-and-navigate>
                                     <h4 class="text-sm font-medium text-gray-900 {{ $notification->read_at ? '' : 'font-semibold' }}">
                                         {{ $notification->data['subject'] ?? 'Notification' }}
                                     </h4>
                                     <p class="text-xs text-gray-600 mt-1">
+                                        {{ $notification->data['message'] ?? $notification->data['subject'] ?? 'Notification' }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">
                                         {{ $notification->created_at->diffForHumans() }}
                                     </p>
                                 </a>

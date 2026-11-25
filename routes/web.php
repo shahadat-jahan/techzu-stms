@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BusinessHourController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\NotificationController;
@@ -39,6 +40,7 @@ Route::middleware('auth')->prefix('tickets')->name('tickets.')->group(function (
     Route::post('/{ticket}/reopen', [TicketController::class, 'reopen'])->name('reopen');
     Route::post('/{ticket}/replies', [TicketReplyController::class, 'store'])->middleware('throttle:30,1')->name('replies.store');
     Route::patch('/{ticket}/replies/{reply}', [TicketReplyController::class, 'update'])->name('replies.update');
+    Route::delete('/{ticket}/replies/{reply}', [TicketReplyController::class, 'destroy'])->name('replies.destroy');
     Route::post('/{ticket}/attachments', [AttachmentController::class, 'store'])->middleware('throttle:30,1')->name('attachments.store');
     Route::post('/{ticket}/accept', [TicketController::class, 'accept'])->name('accept');
     Route::post('/{ticket}/assign', [TicketController::class, 'assign'])->name('assign');
@@ -60,6 +62,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/imports/{import}', [ImportController::class, 'show'])->name('imports.show');
     Route::get('/imports/{import}/progress', [ImportController::class, 'progress'])->name('imports.progress');
     Route::get('/imports/{import}/failed-csv', [ImportController::class, 'failedCsv'])->name('imports.failed-csv');
+    Route::get('/customers/search', [CustomerController::class, 'search'])->middleware('throttle:30,1')->name('customers.search');
 });
 
 Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {

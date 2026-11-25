@@ -40,6 +40,21 @@ class Attachment extends Model
         return $this->attachable instanceof TicketReply && $this->attachable->is_internal;
     }
 
+    public function getSizeFormattedAttribute(): string
+    {
+        $bytes = $this->size;
+
+        if ($bytes >= 1024 * 1024) {
+            return number_format($bytes / (1024 * 1024), 2).' MB';
+        }
+
+        if ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2).' KB';
+        }
+
+        return $bytes.' bytes';
+    }
+
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->isAdmin() || $user->isAgent()) {

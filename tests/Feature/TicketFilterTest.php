@@ -259,3 +259,89 @@ it('executes a constant number of queries on ticket listing regardless of row co
 
     expect($largeCount)->toBe($smallCount);
 });
+
+it('sorts tickets by priority severity ascending', function () {
+    $admin = User::factory()->admin()->create();
+
+    $low = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000001', 'priority' => Priority::Low]);
+    $medium = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000002', 'priority' => Priority::Medium]);
+    $high = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000003', 'priority' => Priority::High]);
+    $critical = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000004', 'priority' => Priority::Critical]);
+
+    $response = $this->actingAs($admin)->get(route('tickets.index', [
+        'sort_by' => 'priority',
+        'sort_dir' => 'asc',
+    ]));
+
+    $response->assertOk()
+        ->assertSeeInOrder([
+            $low->ticket_number,
+            $medium->ticket_number,
+            $high->ticket_number,
+            $critical->ticket_number,
+        ]);
+});
+
+it('sorts tickets by priority severity descending', function () {
+    $admin = User::factory()->admin()->create();
+
+    $low = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000001', 'priority' => Priority::Low]);
+    $medium = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000002', 'priority' => Priority::Medium]);
+    $high = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000003', 'priority' => Priority::High]);
+    $critical = Ticket::factory()->create(['ticket_number' => 'TKT-2026-000004', 'priority' => Priority::Critical]);
+
+    $response = $this->actingAs($admin)->get(route('tickets.index', [
+        'sort_by' => 'priority',
+        'sort_dir' => 'desc',
+    ]));
+
+    $response->assertOk()
+        ->assertSeeInOrder([
+            $critical->ticket_number,
+            $high->ticket_number,
+            $medium->ticket_number,
+            $low->ticket_number,
+        ]);
+});
+
+it('allows admins to search customers by name', function () {
+    $admin = User::factory()->admin()->create();
+    $cust1 = User::factory()->customer()->create(['name' => 'John Doe', 'email' => 'john@example.com']);
+    $cust2 = User::factory()->customer()->create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
+    User::factory()->customer()->create(['name' => 'Bob Wilson', 'email' => 'bob@example.com']);
+
+    $response = $this->actingAs($admin)->getJson(route('admin.customers.search', ['q' => 'john']));
+
+    $response->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment(['id' => $cust1->id, 'name' => 'John Doe']);
+});
+
+it('allows admins to search customers by email', function () {
+    $admin = User::factory()->admin()->create();
+    $cust = User::factory()->customer()->create(['name' => 'John Doe', 'email' => 'john.doe@company.com']);
+
+    $response = $this->actingAs($admin)->getJson(route('admin.customers.search', ['q' => 'company.com']));
+
+    $response->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment(['email' => 'john.doe@company.com']);
+});
+
+it('limits customer search results to 20', function () {
+    $admin = User::factory()->admin()->create();
+    User::factory()->customer()->count(25)->create(['name' => 'Customer']);
+
+    $response = $this->actingAs($admin)->getJson(route('admin.customers.search', ['q' => 'Customer']));
+
+    $response->assertOk()
+        ->assertJsonCount(20);
+});
+
+it('denies customer search to non-admin users', function () {
+    $agent = User::factory()->availableAgent()->create();
+
+    $response = $this->actingAs($agent)->getJson(route('admin.customers.search', ['q' => 'john']));
+
+    $response->assertForbidden();
+});

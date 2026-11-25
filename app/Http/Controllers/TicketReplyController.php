@@ -8,6 +8,7 @@ use App\Models\TicketReply;
 use App\Services\TicketService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 
 class TicketReplyController extends Controller
@@ -42,5 +43,15 @@ class TicketReplyController extends Controller
 
         return Redirect::route('tickets.show', $ticket)
             ->with('success', $data['is_internal'] ?? false ? 'Internal note updated.' : 'Reply updated.');
+    }
+
+    public function destroy(Request $request, Ticket $ticket, TicketReply $reply): RedirectResponse
+    {
+        $this->authorize('delete', $reply);
+
+        $this->ticketService->deleteReply($ticket, $reply, $request->user());
+
+        return Redirect::route('tickets.show', $ticket)
+            ->with('success', 'Reply deleted.');
     }
 }

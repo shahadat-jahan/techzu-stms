@@ -65,6 +65,29 @@ function markNotificationAsRead(notificationId, formElement) {
     });
 }
 
+// Mark notification as read then navigate to action URL
+function markAsReadAndNavigate(notificationId, actionUrl) {
+    fetch(`/notifications/${notificationId}/mark-as-read`, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = actionUrl;
+        }
+    })
+    .catch(error => {
+        console.error('Error marking notification as read:', error);
+        // Still navigate even if mark-as-read fails
+        window.location.href = actionUrl;
+    });
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     initNotificationDropdown();
@@ -76,6 +99,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const notificationId = this.dataset.notificationId;
             markNotificationAsRead(notificationId, this);
+        });
+    });
+
+    // Add click handlers to mark-as-read-and-navigate links
+    document.querySelectorAll('[data-mark-as-read-and-navigate]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            const notificationId = this.dataset.notificationId;
+            const actionUrl = this.dataset.actionUrl;
+
+            markAsReadAndNavigate(notificationId, actionUrl);
         });
     });
 });

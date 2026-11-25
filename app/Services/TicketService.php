@@ -210,6 +210,17 @@ class TicketService
         });
     }
 
+    public function deleteReply(Ticket $ticket, TicketReply $reply, User $actor): bool
+    {
+        return DB::transaction(function () use ($ticket, $reply, $actor) {
+            $reply->delete();
+
+            $this->activityLogger->logReplyDeleted($ticket, $reply, $actor);
+
+            return true;
+        });
+    }
+
     /**
      * @param  array<int, UploadedFile>  $files
      * @return Collection<int, Attachment>

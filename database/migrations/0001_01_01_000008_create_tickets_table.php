@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -40,6 +41,22 @@ return new class extends Migration
             $table->index('created_by');
             $table->index('assigned_to');
         });
+
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_ticket_number_trgm_idx ON tickets USING GIN (ticket_number gin_trgm_ops)');
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_subject_trgm_idx ON tickets USING GIN (subject gin_trgm_ops)');
+
+            DB::statement("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(description, ''))) STORED");
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_description_fts_idx ON tickets USING GIN (search_vector)');
+
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_active_status_created_idx ON tickets (status, created_at DESC) WHERE deleted_at IS NULL');
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_assigned_status_created_idx ON tickets (assigned_to, status, created_at DESC) WHERE deleted_at IS NULL');
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_unassigned_status_created_idx ON tickets (status, created_at DESC) WHERE deleted_at IS NULL AND assigned_to IS NULL');
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_status_due_at_idx ON tickets (status, due_at) WHERE deleted_at IS NULL');
+
+            DB::statement("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS priority_rank smallint GENERATED ALWAYS AS (CASE priority WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 ELSE 0 END) STORED");
+            DB::statement('CREATE INDEX IF NOT EXISTS tickets_priority_rank_idx ON tickets (priority_rank)');
+        }
     }
 
     /**

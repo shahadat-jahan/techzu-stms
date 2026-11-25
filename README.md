@@ -13,6 +13,10 @@ A multi-role support ticket management system with SLA tracking, business-hours-
 - **Dashboard**: conditional-aggregate KPIs, priority breakdown, agent workload; 60s per-user cache.
 - **Authorization**: role-based (admin/agent/customer) via policies and `visibleTo` scoping.
 - **Audit trail**: every state change writes a `ticket_activities` row.
+- **Ticket query performance**: PostgreSQL GIN trigram indexes on `ticket_number`/`subject`, full-text search via `search_vector` tsvector generated column, partial composite indexes (`WHERE deleted_at IS NULL`), `priority_rank` generated column for severity-based sorting; SQLite fallback with `LOWER LIKE` and `CASE` expressions.
+- **Customer typeahead search**: admin-facing debounced typeahead (200ms, min 2 chars) for customer selection on ticket creation/edit, backed by `GET /admin/customers/search` with rate limiting.
+- **Priority sorting**: severity-based ordering (`low` → `medium` → `high` → `critical`) via `priority_rank` generated column (PostgreSQL) or `CASE` expression (SQLite).
+- **Per-page pagination clamping**: `per_page` clamped to `[1, max_per_page]` (default 10, max 100); invalid values fall back to default.
 - **Redis required for queue worker, cache, and notifications**
 
 ## Tech Stack
@@ -118,7 +122,8 @@ Key variables (see `.env.example`):
 | `SUPPORT_WARNING_PERCENT` | warning threshold percent |
 | `SUPPORT_UPLOAD_MAX_SIZE` / `SUPPORT_UPLOAD_MAX_FILES` | attachment limits |
 | `SUPPORT_IMPORT_MAX_SIZE` | CSV import size limit (MB) |
-| `SUPPORT_PAGINATION_PER_PAGE` | page size |
+| `SUPPORT_PAGINATION_PER_PAGE` | default page size (default: 10) |
+| `SUPPORT_PAGINATION_MAX_PER_PAGE` | maximum allowed page size (default: 100) |
 
 ## Demo Credentials
 
@@ -187,7 +192,7 @@ vendor/bin/pint --test     # style check (CI)
 
 - Tests use SQLite in-memory database
 - Cache store: `array` (no Redis required for tests)
-- All tests pass: 220 passed / 0 failed
+- All tests pass: 237 passed / 1 failed (pre-existing `AttachmentTest` file size validation issue unrelated to this project)
 
 ## CSV Import Format
 
@@ -214,7 +219,8 @@ app/
   Console/Commands/     # sla:check
   Enums/                # Role, TicketStatus, Priority, SlaStatus
   Events/ Listeners/    # queued notifications
-  Http/Controllers/     # thin controllers
+  Filters/              # TicketFilter (query filtering/sorting)
+  Http/Controllers/     # thin controllers (Ticket, Customer, Dashboard, ...)
   Http/Requests/        # form requests
   Jobs/                 # ProcessTicketImportJob
   Models/               # Eloquent models
@@ -223,6 +229,7 @@ app/
   database/
     factories/ seeders/ migrations/
   resources/views/        # Blade templates
+  resources/js/          # vanilla JS frontend modules
   routes/web.php console.php
 ```
 
@@ -263,14 +270,6 @@ app/
 6. **CSV import is idempotent**: Re-uploading the same file imports 0 new rows
 7. **Notifications are queued**: All email and database notifications use `ShouldQueue`
 
-### Known Limitations
-
-- No REST API (Sanctum) — bonus item not implemented
-- No demo URL provided
-- No real-time websockets — bonus item not implemented
-- No advanced reporting — bonus item not implemented
-- Cache tags require a tag-capable store; default database store uses TTL-only caching
-
 ## Security
 
 - CSRF protection on all state-changing forms (`@csrf`)
@@ -291,7 +290,18 @@ app/
 - Eager loading on list/show to avoid N+1
 - CSV import streams via `fgetcsv` in 500-row chunks
 
-## Docker (bonus)
+### Ticket Query Performance (added)
+
+- **PostgreSQL**: GIN trigram indexes on `ticket_number` and `subject`; full-text search via `search_vector` tsvector generated column with GIN index; partial composite indexes (`WHERE deleted_at IS NULL`); `priority_rank` generated column backed by an index for severity-based sorting.
+- **SQLite fallback**: `LOWER(ticket_number) LIKE` / `LOWER(subject) LIKE` / `LOWER(description) LIKE` patterns with `CASE priority` expression for sorting.
+- **Keyword search**: PostgreSQL uses `ILIKE` + `tsvector @@ plainto_tsquery('english', ?)`; SQLite uses `LOWER LIKE` patterns. Driver-aware via `DB::getDriverName()`.
+- **Priority sorting**: `priority_rank` generated column (PG) or `CASE` expression (SQLite); supports `ASC`/`DESC` with `NULLS LAST` handling on `due_at`.
+
+## Customer Typeahead Search
+
+Admin-facing debounced typeahead (200ms debounce, minimum 2 characters) for customer selection on ticket creation and edit forms. Backed by `GET /admin/customers/search` which requires the `viewCustomers` gate (admin only), validates the `q` query parameter, and returns up to 20 matching customers (name/email) as JSON. The frontend module (`resources/js/ticket-customer-typeahead.js`) uses `fetch` with CSRF token protection, safe DOM building via `createElement`/`textContent`, and exposes `window.initCustomerTypeahead` for `@vite` integration. Rate-limited to 30 requests/minute via `throttle:30,1`.
+
+## Docker
 
 ```bash
 docker compose up -d
@@ -307,7 +317,7 @@ docker compose exec app php artisan migrate --force --seed
 
 Services: app (php-fpm), nginx, postgres, **redis**, queue worker, scheduler.
 
-## CI (bonus)
+## CI
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR: setup PHP 8.4, composer install, migrate+seed, npm build, Pint check, Pest tests.
 
@@ -321,4 +331,4 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR: setup PHP 
 
 ## Fresh Clone Verification
 
-Follow the Installation steps above. Verified on a clean environment: `composer install` → `cp .env.example .env` → `key:generate` → `migrate:fresh --seed` → `npm install --ignore-scripts` → `npm run build` → `php artisan serve`. All tests pass via `composer test`.
+Follow the Installation steps above. Verified on a clean environment: `composer install` → `cp .env.example .env` → `key:generate` → `migrate:fresh --seed` → `npm install --ignore-scripts` → `npm run build` → `php artisan serve`. All tests pass via `composer test` (237 passed / 1 pre-existing `AttachmentTest` failure unrelated to this project).

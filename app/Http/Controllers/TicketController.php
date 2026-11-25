@@ -15,7 +15,9 @@ use App\Models\User;
 use App\Services\DashboardService;
 use App\Services\TicketAssignmentService;
 use App\Services\TicketService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,82 +33,22 @@ class TicketController extends Controller
 
     public function index(Request $request): View
     {
-        $tickets = Ticket::query()
-            ->visibleTo($request->user())
-            ->active()
+        $tickets = $this->ticketQuery($request, 'active')
             ->filter($request->user(), $request->all())
-            ->select([
-                'id',
-                'ticket_number',
-                'subject',
-                'priority',
-                'status',
-                'due_at',
-                'sla_warning_at',
-                'resolved_at',
-                'closed_at',
-                'category_id',
-                'assigned_to',
-                'created_by',
-                'created_at',
-            ])
-            ->with([
-                'customer:id,name,email',
-                'agent:id,name,email',
-                'category:id,name',
-            ])
-            ->paginate(config('support.pagination.per_page'))
+            ->paginate($this->getPerPage($request))
             ->withQueryString();
 
-        $categories = Category::orderBy('name')->get(['id', 'name']);
-        $agents = $request->user()->isCustomer()
-            ? collect()
-            : User::where('role', Role::Agent->value)->orderBy('name')->get(['id', 'name']);
-        $customers = $request->user()->isAdmin()
-            ? User::where('role', Role::Customer->value)->orderBy('name')->get(['id', 'name'])
-            : collect();
-
-        return view('tickets.index', compact('tickets', 'categories', 'agents', 'customers'));
+        return view('tickets.index', $this->listData($request, $tickets));
     }
 
     public function resolvedIndex(Request $request): View
     {
-        $tickets = Ticket::query()
-            ->visibleTo($request->user())
-            ->closedOrResolved()
+        $tickets = $this->ticketQuery($request, 'closedOrResolved')
             ->filter($request->user(), $request->all())
-            ->select([
-                'id',
-                'ticket_number',
-                'subject',
-                'priority',
-                'status',
-                'due_at',
-                'sla_warning_at',
-                'resolved_at',
-                'closed_at',
-                'category_id',
-                'assigned_to',
-                'created_by',
-                'created_at',
-            ])
-            ->with([
-                'customer:id,name,email',
-                'agent:id,name,email',
-                'category:id,name',
-            ])
-            ->paginate(config('support.pagination.per_page'))
+            ->paginate($this->getPerPage($request))
             ->withQueryString();
 
-        $categories = Category::orderBy('name')->get(['id', 'name']);
-        $agents = $request->user()->isCustomer()
-            ? collect()
-            : User::where('role', Role::Agent->value)->orderBy('name')->get(['id', 'name']);
-        $customers = $request->user()->isAdmin()
-            ? User::where('role', Role::Customer->value)->orderBy('name')->get(['id', 'name'])
-            : collect();
-
-        return view('tickets.resolved', compact('tickets', 'categories', 'agents', 'customers'));
+        return view('tickets.resolved', $this->listData($request, $tickets));
     }
 
     public function show(Request $request, Ticket $ticket): View
@@ -290,5 +232,113 @@ class TicketController extends Controller
     private function activeCategories(): Collection
     {
         return Category::where('is_active', true)->orderBy('name')->get();
+    }
+
+    private function ticketQuery(Request $request, string $scope): Builder
+    {
+        $ticket = Ticket::query()
+            ->visibleTo($request->user());
+
+        if ($scope === 'active') {
+            $ticket->active();
+        } else {
+            $ticket->closedOrResolved();
+        }
+
+        return $ticket
+            ->select([
+                'id',
+                'ticket_number',
+                'subject',
+                'priority',
+                'status',
+                'due_at',
+                'sla_warning_at',
+                'resolved_at',
+                'closed_at',
+                'category_id',
+                'assigned_to',
+                'created_by',
+                'created_at',
+            ])
+            ->with([
+                'customer:id,name,email',
+                'agent:id,name,email',
+                'category:id,name',
+            ]);
+    }
+
+    /**
+     * @return array{tickets: LengthAwarePaginator, categories: Collection<int, Category>, agents: Collection<int, User>, selectedCustomer: ?User, activeFiltersCount: int, isResolvedPage: bool, currentRoute: string, availableStatuses: array<int, TicketStatus>}
+     */
+    private function listData(Request $request, LengthAwarePaginator $tickets): array
+    {
+        $isResolvedPage = $request->routeIs('tickets.resolved');
+
+        return [
+            'tickets' => $tickets,
+            'categories' => Category::orderBy('name')->get(['id', 'name']),
+            'agents' => $request->user()->isCustomer()
+                ? collect()
+                : User::where('role', Role::Agent->value)->orderBy('name')->get(['id', 'name']),
+            'selectedCustomer' => $this->selectedCustomer($request),
+            'activeFiltersCount' => $this->activeFiltersCount(),
+            'isResolvedPage' => $isResolvedPage,
+            'currentRoute' => $isResolvedPage ? route('tickets.resolved') : route('tickets.index'),
+            'availableStatuses' => $this->availableStatuses(),
+        ];
+    }
+
+    private function activeFiltersCount(): int
+    {
+        return collect([
+            request('keyword'),
+            request('number'),
+            request('status'),
+            request('priority'),
+            request('category'),
+            request('assigned_to'),
+            request('customer_id'),
+            request('created_from'),
+            request('created_to'),
+            request('sla_status'),
+        ])->filter(fn ($value) => ! is_null($value) && $value !== '')->count();
+    }
+
+    private function availableStatuses(): array
+    {
+        if (request()->routeIs('tickets.resolved')) {
+            return [
+                TicketStatus::Resolved,
+                TicketStatus::Closed,
+            ];
+        }
+
+        return [
+            TicketStatus::Open,
+            TicketStatus::InProgress,
+            TicketStatus::WaitingForCustomer,
+        ];
+    }
+
+    private function getPerPage(Request $request): int
+    {
+        $max = (int) config('support.pagination.max_per_page', 100);
+        $default = (int) config('support.pagination.per_page', 10);
+        $requested = $request->input('per_page');
+
+        $perPage = is_numeric($requested) ? (int) $requested : $default;
+
+        return max(1, min($perPage, $max));
+    }
+
+    private function selectedCustomer(Request $request): ?User
+    {
+        if (! $request->user()->isAdmin() || ! $request->filled('customer_id')) {
+            return null;
+        }
+
+        return User::where('role', Role::Customer->value)
+            ->find($request->integer('customer_id'), ['id', 'name', 'email']);
     }
 }

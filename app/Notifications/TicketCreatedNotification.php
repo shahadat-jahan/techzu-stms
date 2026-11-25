@@ -37,6 +37,7 @@ class TicketCreatedNotification extends Notification
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->ticket_number,
             'subject' => $this->ticket->subject,
+            'message' => "New ticket created: {$this->ticket->ticket_number}",
             'priority' => $this->ticket->priority->value,
             'action_url' => url("/tickets/{$this->ticket->id}"),
         ];

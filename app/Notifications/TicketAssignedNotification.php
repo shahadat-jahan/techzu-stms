@@ -36,6 +36,7 @@ class TicketAssignedNotification extends Notification
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->ticket_number,
             'subject' => $this->ticket->subject,
+            'message' => "You have been assigned to ticket {$this->ticket->ticket_number}",
             'action_url' => url("/tickets/{$this->ticket->id}"),
         ];
     }

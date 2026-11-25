@@ -7,22 +7,33 @@ use App\Enums\TicketStatus;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class TicketFilter
 {
     public function apply(Builder $query, User $user, array $filters): Builder
     {
+        $isPgsql = DB::getDriverName() === 'pgsql';
+
         if (! empty($filters['number'])) {
             $number = mb_strtolower(trim((string) $filters['number']));
-            $query->whereRaw('LOWER(ticket_number) LIKE ?', ["%{$number}%"]);
+            $query->where('ticket_number', $isPgsql ? 'ILIKE' : 'LIKE', "%{$number}%");
         }
 
         if (! empty($filters['keyword'])) {
             $keyword = mb_strtolower(trim((string) $filters['keyword']));
-            $query->where(function (Builder $searchQuery) use ($keyword) {
-                $searchQuery->whereRaw('LOWER(ticket_number) LIKE ?', ["%{$keyword}%"])
-                    ->orWhereRaw('LOWER(subject) LIKE ?', ["%{$keyword}%"])
-                    ->orWhereRaw('LOWER(description) LIKE ?', ["%{$keyword}%"]);
+
+            $query->where(function (Builder $searchQuery) use ($keyword, $isPgsql) {
+                if ($isPgsql) {
+                    $searchQuery->where('ticket_number', 'ILIKE', "%{$keyword}%")
+                        ->orWhere('subject', 'ILIKE', "%{$keyword}%")
+                        ->orWhereRaw("search_vector @@ plainto_tsquery('english', ?)", [$keyword])
+                        ->orWhere('description', 'ILIKE', "%{$keyword}%");
+                } else {
+                    $searchQuery->whereRaw('LOWER(ticket_number) LIKE ?', ["%{$keyword}%"])
+                        ->orWhereRaw('LOWER(subject) LIKE ?', ["%{$keyword}%"])
+                        ->orWhereRaw('LOWER(description) LIKE ?', ["%{$keyword}%"]);
+                }
             });
         }
 
@@ -81,19 +92,33 @@ class TicketFilter
             };
         }
 
-        $this->applySorting($query, $filters);
+        $this->applySorting($query, $filters, $isPgsql);
 
         return $query;
     }
 
-    private function applySorting(Builder $query, array $filters): void
+    private function applySorting(Builder $query, array $filters, bool $isPgsql): void
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortDir = strtolower($filters['sort_dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
         match ($sortBy) {
-            'due_at' => $query->orderByRaw("due_at IS NULL, due_at {$sortDir}"),
-            'priority' => $query->orderBy('priority', $sortDir),
+            'due_at' => $query->orderByRaw(
+                $isPgsql
+                    ? "due_at {$sortDir} NULLS LAST"
+                    : "due_at IS NULL, due_at {$sortDir}"
+            ),
+            'priority' => $isPgsql
+                ? $query->orderBy('priority_rank', $sortDir)
+                : $query->orderByRaw(
+                    "CASE priority
+                        WHEN 'low' THEN 1
+                        WHEN 'medium' THEN 2
+                        WHEN 'high' THEN 3
+                        WHEN 'critical' THEN 4
+                        ELSE 0
+                    END {$sortDir}"
+                ),
             default => $query->orderBy('created_at', $sortDir),
         };
     }

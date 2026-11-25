@@ -139,3 +139,30 @@ it('renders the filter bar with active values populated from query string', func
         ->assertSee('value="critical" selected', false)
         ->assertSee('Reset Filters');
 });
+
+it('clamps per_page to the configured maximum', function () {
+    $admin = User::factory()->admin()->create();
+    Ticket::factory()->count(150)->create();
+
+    $this->actingAs($admin)->get(route('tickets.index', ['per_page' => 1000]))
+        ->assertOk()
+        ->assertViewHas('tickets', fn ($tickets): bool => $tickets->perPage() === 100 && $tickets->count() === 100);
+});
+
+it('uses the default per_page when the requested value is invalid', function () {
+    $admin = User::factory()->admin()->create();
+    Ticket::factory()->count(15)->create();
+
+    $this->actingAs($admin)->get(route('tickets.index', ['per_page' => 'invalid']))
+        ->assertOk()
+        ->assertViewHas('tickets', fn ($tickets): bool => $tickets->perPage() === 10);
+});
+
+it('respects a minimum per_page of one', function () {
+    $admin = User::factory()->admin()->create();
+    Ticket::factory()->count(5)->create();
+
+    $this->actingAs($admin)->get(route('tickets.index', ['per_page' => 0]))
+        ->assertOk()
+        ->assertViewHas('tickets', fn ($tickets): bool => $tickets->perPage() === 1);
+});
