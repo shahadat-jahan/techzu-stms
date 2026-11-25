@@ -292,6 +292,12 @@ class TicketService
         } else {
             $ticket->resolved_at = null;
             $ticket->closed_at = null;
+            if ($action === 'reopened') {
+                $ticket->escalated_at = null;
+                $ticket->warning_notified_at = null;
+                $ticket->due_at = $this->slaService->calculateDue($ticket->priority, now());
+                $ticket->sla_warning_at = $this->slaService->calculateWarning($ticket->priority, now());
+            }
         }
 
         $ticket->save();
