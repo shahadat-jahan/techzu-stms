@@ -14,6 +14,6 @@ return [
     ],
     'pagination' => [
         'per_page' => env('SUPPORT_PAGINATION_PER_PAGE', 10),
-        'load_more' => env('SUPPORT_PAGINATION_LOAD_MORE', true),
+        'max_per_page' => env('SUPPORT_PAGINATION_MAX_PER_PAGE', 100),
     ],
 ];

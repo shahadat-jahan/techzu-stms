@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BusinessHourController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\NotificationController;
@@ -61,6 +62,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/imports/{import}', [ImportController::class, 'show'])->name('imports.show');
     Route::get('/imports/{import}/progress', [ImportController::class, 'progress'])->name('imports.progress');
     Route::get('/imports/{import}/failed-csv', [ImportController::class, 'failedCsv'])->name('imports.failed-csv');
+    Route::get('/customers/search', [CustomerController::class, 'search'])->middleware('throttle:30,1')->name('customers.search');
 });
 
 Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {

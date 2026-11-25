@@ -1,21 +1,3 @@
-@php
-    $activeFiltersCount = collect([
-        request('keyword'),
-        request('number'),
-        request('status'),
-        request('priority'),
-        request('category'),
-        request('assigned_to'),
-        request('customer_id'),
-        request('created_from'),
-        request('created_to'),
-        request('sla_status'),
-    ])->filter(fn ($val) => ! is_null($val) && $val !== '')->count();
-
-    $isResolvedPage = request()->routeIs('tickets.resolved');
-    $currentRoute = $isResolvedPage ? route('tickets.resolved') : route('tickets.index');
-@endphp
-
 <div class="mb-6 bg-white shadow-sm sm:rounded-lg overflow-hidden border border-gray-100" id="filter-container">
     <div class="px-6 py-4 flex items-center justify-between bg-gray-50 border-b border-gray-100">
         <div class="flex items-center gap-2">
@@ -70,11 +52,6 @@
                     <label for="status" class="block text-xs font-medium text-gray-700">Status</label>
                     <select name="status" id="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-xs focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All Statuses</option>
-                        @php
-                            $availableStatuses = $isResolvedPage
-                                ? [\App\Enums\TicketStatus::Resolved, \App\Enums\TicketStatus::Closed]
-                                : [\App\Enums\TicketStatus::Open, \App\Enums\TicketStatus::InProgress, \App\Enums\TicketStatus::WaitingForCustomer];
-                        @endphp
                         @foreach ($availableStatuses as $status)
                             <option value="{{ $status->value }}" @selected(request('status') === $status->value)>
                                 {{ $status->label() }}
@@ -113,17 +90,16 @@
                 @if (auth()->user()->isAdmin())
                     <div>
                         <label for="customer_id" class="block text-xs font-medium text-gray-700">Customer</label>
-                        <select name="customer_id" id="customer_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-xs focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">All Customers</option>
-                            @foreach ($customers as $cust)
-                                <option value="{{ $cust->id }}" @selected(request('customer_id') == $cust->id)>
-                                    {{ $cust->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="relative">
+                            <input type="text" name="customer_search" id="customer_search" value="{{ $selectedCustomer?->name ?? '' }}" placeholder="Type to search customers..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-xs focus:border-indigo-500 focus:ring-indigo-500" autocomplete="off" data-customer-search-url="{{ route('admin.customers.search') }}">
+                            <input type="hidden" name="customer_id" id="customer_id" value="{{ $selectedCustomer?->id ?? '' }}">
+                            <button type="button" id="clear_customer" class="absolute right-3 top-1 text-gray-400 hover:text-gray-600 hidden" aria-label="Clear customer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <div id="customer_results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-auto"></div>
+                        </div>
                     </div>
                 @endif
-
 
                 <div>
                     <label for="sla_status" class="block text-xs font-medium text-gray-700">SLA Status</label>
@@ -199,3 +175,4 @@
     });
 </script>
 
+@vite(['resources/js/ticket-customer-typeahead.js'])
