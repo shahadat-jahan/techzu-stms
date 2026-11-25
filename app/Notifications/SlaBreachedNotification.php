@@ -37,6 +37,7 @@ class SlaBreachedNotification extends Notification
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->ticket_number,
             'subject' => $this->ticket->subject,
+            'message' => "SLA breached for ticket {$this->ticket->ticket_number}",
             'due_at' => $this->ticket->due_at,
             'action_url' => url("/tickets/{$this->ticket->id}"),
         ];

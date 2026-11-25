@@ -36,6 +36,7 @@ class TicketResolvedNotification extends Notification
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->ticket_number,
             'subject' => $this->ticket->subject,
+            'message' => "Ticket {$this->ticket->ticket_number} has been resolved",
             'action_url' => url("/tickets/{$this->ticket->id}"),
         ];
     }

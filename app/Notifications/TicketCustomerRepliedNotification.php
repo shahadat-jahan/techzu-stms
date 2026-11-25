@@ -37,6 +37,7 @@ class TicketCustomerRepliedNotification extends Notification
             'ticket_id' => $this->reply->ticket->id,
             'ticket_number' => $this->reply->ticket->ticket_number,
             'subject' => $this->reply->ticket->subject,
+            'message' => "Customer replied to ticket {$this->reply->ticket->ticket_number}",
             'reply_content' => $this->reply->content,
             'action_url' => url("/tickets/{$this->reply->ticket->id}"),
         ];
