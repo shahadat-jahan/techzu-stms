@@ -201,7 +201,9 @@ class TicketService
     {
         return DB::transaction(function () use ($ticket, $reply, $data, $actor) {
             $reply->body = $data['body'];
-            $reply->is_internal = (bool) ($data['is_internal'] ?? false);
+            if (array_key_exists('is_internal', $data) && ! $actor->isCustomer()) {
+                $reply->is_internal = (bool) $data['is_internal'];
+            }
             $reply->save();
 
             $this->activityLogger->logReplyUpdated($ticket, $reply, $actor);

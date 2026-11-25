@@ -27,22 +27,26 @@ class TicketReplyController extends Controller
 
     public function update(StoreTicketReplyRequest $request, Ticket $ticket, TicketReply $reply): RedirectResponse|JsonResponse
     {
+        abort_if($reply->ticket_id !== $ticket->id, 404);
+
         $this->authorize('update', $reply);
 
         $data = $request->validated();
 
         $this->ticketService->updateReply($ticket, $reply, $data, $request->user());
 
+        $isInternal = $reply->fresh()->is_internal;
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => $data['is_internal'] ?? false ? 'Internal note updated.' : 'Reply updated.',
-                'body' => $reply->body,
+                'message' => $isInternal ? 'Internal note updated.' : 'Reply updated.',
+                'body' => $reply->fresh()->body,
             ]);
         }
 
         return Redirect::route('tickets.show', $ticket)
-            ->with('success', $data['is_internal'] ?? false ? 'Internal note updated.' : 'Reply updated.');
+            ->with('success', $isInternal ? 'Internal note updated.' : 'Reply updated.');
     }
 
     public function destroy(Request $request, Ticket $ticket, TicketReply $reply): RedirectResponse

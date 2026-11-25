@@ -155,3 +155,42 @@ it('updates a reply successfully', function () {
     expect($reply->body)->toBe('Updated body');
     expect($ticket->activities()->where('action', 'reply_updated')->count())->toBe(1);
 });
+
+it('cannot update a reply using another ticket id in the route', function () {
+    $agent = User::factory()->agent()->create();
+    $ticketA = Ticket::factory()->create();
+    $ticketB = Ticket::factory()->create();
+    $reply = TicketReply::factory()->create([
+        'ticket_id' => $ticketA->id,
+        'user_id' => $agent->id,
+        'body' => 'Original text',
+    ]);
+
+    $response = $this->actingAs($agent)
+        ->patch(route('tickets.replies.update', ['ticket' => $ticketB->id, 'reply' => $reply->id]), [
+            'body' => 'Tampered text',
+        ]);
+
+    $response->assertNotFound();
+    expect($reply->fresh()->body)->toBe('Original text');
+});
+
+it('editing internal note without is_internal parameter does not make it public', function () {
+    $agent = User::factory()->agent()->create();
+    $ticket = Ticket::factory()->create(['assigned_to' => $agent->id]);
+    $reply = TicketReply::factory()->create([
+        'ticket_id' => $ticket->id,
+        'user_id' => $agent->id,
+        'is_internal' => true,
+        'body' => 'Private note',
+    ]);
+
+    $response = $this->actingAs($agent)
+        ->patch(route('tickets.replies.update', ['ticket' => $ticket, 'reply' => $reply->id]), [
+            'body' => 'Updated private note',
+        ]);
+
+    $response->assertRedirect();
+    expect($reply->fresh()->is_internal)->toBeTrue()
+        ->and($reply->fresh()->body)->toBe('Updated private note');
+});
