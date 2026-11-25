@@ -54,7 +54,15 @@ class TicketPolicy
 
     public function changeStatus(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isAgent()) {
+            return $ticket->assigned_to === $user->id;
+        }
+
+        return false;
     }
 
     public function changePriority(User $user, Ticket $ticket): bool
@@ -64,17 +72,44 @@ class TicketPolicy
 
     public function resolve(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isAgent()) {
+            return $ticket->assigned_to === $user->id;
+        }
+
+        return false;
     }
 
     public function close(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isAgent()) {
+            return $ticket->assigned_to === $user->id;
+        }
+
+        // Customer can close their own ticket once it is resolved.
+        return $user->isCustomer()
+            && $ticket->created_by === $user->id
+            && $ticket->status === TicketStatus::Resolved;
     }
 
     public function reopen(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isAgent()) {
+            return $ticket->assigned_to === $user->id;
+        }
+
+        return $user->isCustomer() && $ticket->created_by === $user->id;
     }
 
     public function delete(User $user, Ticket $ticket): bool

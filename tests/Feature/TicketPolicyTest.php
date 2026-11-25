@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\TicketActivity;
 use App\Models\TicketReply;
@@ -65,8 +66,8 @@ it('authorizes a customer only on their own tickets', function () {
         ->and(Gate::forUser($customer)->allows('reply', $own))->toBeTrue()
         ->and(Gate::forUser($customer)->allows('reply', $foreign))->toBeFalse()
         ->and(Gate::forUser($customer)->allows('addInternalNote', $own))->toBeFalse()
-        ->and(Gate::forUser($customer)->allows('changeStatus', $own))->toBeTrue()
-        ->and(Gate::forUser($customer)->allows('resolve', $own))->toBeTrue()
+        ->and(Gate::forUser($customer)->allows('changeStatus', $own))->toBeFalse()
+        ->and(Gate::forUser($customer)->allows('resolve', $own))->toBeFalse()
         ->and(Gate::forUser($customer)->allows('delete', $own))->toBeFalse();
 });
 
@@ -108,6 +109,32 @@ it('forbids a customer from viewing or editing another customer ticket over HTTP
 
     $this->actingAs($customer)
         ->get(route('tickets.edit', $ticket))
+        ->assertForbidden();
+});
+
+it('customer cannot change status directly or resolve ticket', function () {
+    $customer = User::factory()->customer()->create();
+    $ticket = Ticket::factory()->create(['created_by' => $customer->id, 'status' => TicketStatus::Open]);
+
+    $this->actingAs($customer)
+        ->patch(route('tickets.status', $ticket), ['status' => 'in_progress'])
+        ->assertForbidden();
+
+    $this->actingAs($customer)
+        ->post(route('tickets.resolve', $ticket))
+        ->assertForbidden();
+});
+
+it('agent cannot resolve or close unassigned ticket without accepting it first', function () {
+    $agent = User::factory()->agent()->create();
+    $ticket = Ticket::factory()->create(['assigned_to' => null, 'status' => TicketStatus::Open]);
+
+    $this->actingAs($agent)
+        ->post(route('tickets.resolve', $ticket))
+        ->assertForbidden();
+
+    $this->actingAs($agent)
+        ->post(route('tickets.close', $ticket))
         ->assertForbidden();
 });
 
