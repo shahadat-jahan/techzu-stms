@@ -23,6 +23,7 @@ return new class extends Migration
             $table->boolean('is_available')->default(true);
             $table->unsignedInteger('max_active_tickets')->default(5);
             $table->index(['role', 'is_available']);
+            $table->softDeletes();
             $table->timestamps();
         });
 

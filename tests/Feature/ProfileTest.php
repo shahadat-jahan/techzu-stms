@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Ticket;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -64,7 +65,26 @@ test('user can delete their account', function () {
         ->assertRedirect('/');
 
     $this->assertGuest();
-    $this->assertNull($user->fresh());
+    $this->assertSoftDeleted('users', ['id' => $user->id]);
+});
+
+test('user with existing tickets can delete their account without foreign key crashes', function () {
+    $user = User::factory()->customer()->create();
+    Ticket::factory()->create(['created_by' => $user->id]);
+
+    $response = $this
+        ->actingAs($user)
+        ->from('/profile')
+        ->delete('/profile', [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/');
+
+    $this->assertGuest();
+    $this->assertSoftDeleted('users', ['id' => $user->id]);
 });
 
 test('correct password must be provided to delete account', function () {
