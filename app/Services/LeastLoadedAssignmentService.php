@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
 class LeastLoadedAssignmentService
@@ -31,10 +32,19 @@ class LeastLoadedAssignmentService
             return null;
         }
 
-        return $eligible->sortBy(fn (User $agent): array => [
-            $agent->active_tickets_count,
-            $agent->last_assignment_at?->timestamp ?? PHP_INT_MAX,
-        ])->first();
+        return $eligible->sortBy(function (User $agent): array {
+            $timestamp = PHP_INT_MAX;
+            if ($agent->last_assignment_at) {
+                $timestamp = is_numeric($agent->last_assignment_at)
+                    ? (int) $agent->last_assignment_at
+                    : Carbon::parse($agent->last_assignment_at)->timestamp;
+            }
+
+            return [
+                $agent->active_tickets_count,
+                $timestamp,
+            ];
+        })->first();
     }
 
     private function availableAgents(?int $categoryId): Collection
