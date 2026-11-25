@@ -37,7 +37,7 @@ it('validates file size, mime type, and count', function () {
     $response = $this->actingAs($customer)
         ->post(route('tickets.attachments.store', $ticket), [
             'files' => [
-                UploadedFile::fake()->create('x', 6, 'application/pdf'),
+                UploadedFile::fake()->create('x', 6 * 1024, 'application/pdf'),
             ],
         ]);
 
